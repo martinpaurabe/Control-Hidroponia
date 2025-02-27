@@ -1,0 +1,3542 @@
+#include <vcl.h>
+#pragma hdrstop
+
+#include "Unit_Gral.h"
+
+#pragma package(smart_init)
+#pragma resource "*.dfm"
+//---------------------------------------------------------------------------
+
+#include "Unit_PuertoCom.h"
+#include "Unit_ThreadComPort.h"
+#include "Unit_DialogConexion.h"
+//---------------------------------------------------------------------------
+
+TForm_Gral *Form_Gral;
+
+__fastcall TForm_Gral::TForm_Gral(TComponent* Owner)
+        : TForm(Owner)
+{
+ /*
+  ComStatus = 0;
+  PuertoCom = 1;
+  OpenCommPort(BAUDRATE, PuertoCom); //Abro comunicacion
+  if(!ComAbierto())
+  {
+    ShowMessage("             La aplicación se iniciará sin conexión             ");
+  }
+*/
+
+  ThreadComPort = new TThreadComPort(false);
+  ActualizarInterfase();
+
+    return;
+
+}
+//---------------------------------------------------------------------------
+
+
+void __fastcall TForm_Gral::FormShow(TObject *Sender)
+{
+//  Tile();
+  return;
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::FormClose(TObject *Sender, TCloseAction &Action)
+{
+    DialogConexion->Visible=true;
+    return;
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::ConexionClick(TObject *Sender)
+{
+//  DialogConexion = new TDialogConexion(Application);
+//  DialogConexion->ShowModal();
+//  delete DialogConexion;
+
+//  ActualizarInterfase();
+  return;
+}
+//---------------------------------------------------------------------------
+
+
+//***************************************************************************
+//                               Thread Principal
+//***************************************************************************
+
+void __fastcall TForm_Gral::But_UpD_MtrClick(TObject *Sender)
+{
+  TModHidro Refe;
+
+  TEdit *EditAct=(TEdit*)Sender;
+
+  Refe=ModHidro;
+  sendSciMsg(CMD_MHI_SAVE, &Refe.Status, sizeof(Refe.Status));
+    return;
+
+
+}
+//---------------------------------------------------------------------------
+
+
+void __fastcall TThreadComPort::sciDataReceived(byte *buf)
+{
+  switch(buf[0])
+  {
+    case DATA_MHI:
+      Form_Gral->ModHidro=*(TModHidro *)(buf+1);
+    break;
+	case DATA_MHI_SET_STATUS:
+	  Form_Gral->ModHidro.Status =*(TStatus *)(buf+1);
+    break;
+	case DATA_MHI_SET_CONST:
+	  Form_Gral->ModHidro.Const =*(TConstModHidro *)(buf+1);
+    break;
+	case DATA_MHI_SET_SENS:
+	  Form_Gral->ModHidro.GrpSens=*(TGrupoSens *)(buf+1);
+    break;
+	case DATA_MHI_SET_TMRS1:
+	  Form_Gral->ModHidro.Grp1Tmrs=*(TGrupo1Timers *)(buf+1);
+	break;
+	case DATA_MHI_SET_TMRS2:
+	  Form_Gral->ModHidro.Grp2Tmrs=*(TGrupo2Timers *)(buf+1);
+	break;
+	default:
+	return;
+  }
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::TimerSciTxTimer(TObject *Sender)
+{
+  static int indice=0;
+
+  switch (indice) {
+	case 0:
+	  sendSciMsg(DRQ_MHI_STATUS, &ModHidro.Status, sizeof(ModHidro.Status));
+	  indice++;
+	  break;
+	case 1:
+	  sendSciMsg(DRQ_MHI_CONST, &ModHidro.Const, sizeof(ModHidro.Const));
+	  indice++;
+	  break;
+	case 2:
+	  sendSciMsg(DRQ_MHI_TMRS1, &ModHidro.Grp1Tmrs, sizeof(ModHidro.Grp1Tmrs));
+	  indice++;
+	  break;
+	case 3:
+	  sendSciMsg(DRQ_MHI_TMRS2, &ModHidro.Grp2Tmrs, sizeof(ModHidro.Grp2Tmrs));
+	  indice++;
+	  break;
+	case 4:
+	  sendSciMsg(DRQ_MHI_SENS, &ModHidro.GrpSens, sizeof(ModHidro.GrpSens));
+	  indice=0;
+	  break;
+	default:
+	  indice=0;
+  }
+
+   if(Form_Gral->Chek_Auto_Actual->Checked)
+    ActualizarInterfase();
+
+
+  return;
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::ActualizarInterfase(void)
+{
+  char temp_string[30];
+
+  Form_Gral->Bot_Man_Auto->Brush->Color=clLime;
+
+  if(ThreadComPort->EstSciRv & ERR_PUERTO)
+  {
+    StatusBarPrinc->Panels->Items[0]->Text = "Sin conexión";
+  }
+  else
+  {
+    StatusBarPrinc->Panels->Items[0]->Text = "";
+  }
+
+  if(ThreadComPort->EstSciRv & TIMEOUT)
+  {
+    StatusBarPrinc->Panels->Items[1]->Text = "Time out";
+  }
+  else
+  {
+    StatusBarPrinc->Panels->Items[1]->Text = "";
+  }
+
+  if(ThreadComPort->EstSciRv)
+  {
+    StatusBarPrinc->Panels->Items[2]->Text = "";
+  }
+  else
+  {
+    StatusBarPrinc->Panels->Items[2]->Text = "Adquiriendo...";
+  }
+ /*
+  if( ModHidro.GrpSens.DrenLT.val && ModHidro.GrpSens.DrenLT.val)
+  {
+	Form_Gral->Show_DrenLT_Ind->Height=(int)(129.0*ModHidro.GrpSens.DrenLT.val/ModHidro.GrpSens.DrenLT.lng);
+	Form_Gral->Show_DrenLT_Ind->Top=(int)(536.0+129.0*(1.0-ModHidro.GrpSens.DrenLT.val/ModHidro.GrpSens.DrenLT.lng));
+  }
+ */
+  if(Form_Gral->Chek_Auto_Actual->Checked)
+  {
+    Form_Gral->Show_Name->Text=ModHidro.Const.Nombre;
+
+    //Actualizo el Temporizador y parametros generales
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerGral.Time.hms.hor,ModHidro.Grp1Tmrs.TimerGral.Time.hms.min,ModHidro.Grp1Tmrs.TimerGral.Time.hms.seg);
+    Form_Gral->Show_Hora_Disp->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerGral.IniDia.hms.hor,ModHidro.Grp1Tmrs.TimerGral.IniDia.hms.min,ModHidro.Grp1Tmrs.TimerGral.IniDia.hms.seg);
+    Form_Gral->Show_Time_IniDia->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerGral.IniMed.hms.hor,ModHidro.Grp1Tmrs.TimerGral.IniMed.hms.min,ModHidro.Grp1Tmrs.TimerGral.IniMed.hms.seg);
+    Form_Gral->Show_Time_IniMed ->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerGral.FinMed.hms.hor,ModHidro.Grp1Tmrs.TimerGral.FinMed.hms.min,ModHidro.Grp1Tmrs.TimerGral.FinMed.hms.seg);
+    Form_Gral->Show_Time_FinMed->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerGral.FinDia.hms.hor,ModHidro.Grp1Tmrs.TimerGral.FinDia.hms.min,ModHidro.Grp1Tmrs.TimerGral.FinDia.hms.seg);
+    Form_Gral->Show_Time_FinDia->Text= temp_string;
+
+
+
+    //Actualiza Datos del sensor de alto nivel de drenaje
+	Form_Gral->Show_DrenLSH_Max->Text=IntToStr((int)ModHidro.GrpSens.DrenLSH.max.dwrd);
+	Form_Gral->Show_DrenLSH_Min->Text=IntToStr((int)ModHidro.GrpSens.DrenLSH.min.dwrd);
+	Form_Gral->Show_DrenLSH_ADVal->Text=IntToStr((int)ModHidro.GrpSens.DrenLSH.ADval.dwrd);
+	sprintf(temp_string,"%5.1f", ModHidro.GrpSens.DrenLSH.lng);
+    Form_Gral->Show_DrenLSH_Lng->Text=temp_string;
+	sprintf(temp_string,"%5.1f", ModHidro.GrpSens.DrenLSH.swtch);
+    Form_Gral->Show_DrenLSH_Swtch->Text=temp_string;
+	sprintf(temp_string,"%5.1f", ModHidro.GrpSens.DrenLSH.Offset);
+    Form_Gral->Show_DrenLSH_Offset->Text=temp_string;
+	sprintf(temp_string,"%5.1f", ModHidro.GrpSens.DrenLSH.val);
+    Form_Gral->Show_DrenLSH_Val->Text=temp_string;
+
+   //Actualiza Datos del sensor de Bajo nivel de drenaje
+	 Form_Gral->Show_DrenLT_Max->Text=IntToStr((int)ModHidro.GrpSens.DrenLT.max.dwrd);
+	Form_Gral->Show_DrenLT_Min->Text=IntToStr((int)ModHidro.GrpSens.DrenLT.min.dwrd);
+	Form_Gral->Show_DrenLT_ADVal->Text=IntToStr((int)ModHidro.GrpSens.DrenLT.ADval.dwrd);
+	sprintf(temp_string,"%5.1f", ModHidro.GrpSens.DrenLT.lng);
+    Form_Gral->Show_DrenLT_Lng->Text=temp_string;
+	sprintf(temp_string,"%5.1f", ModHidro.GrpSens.DrenLT.swtch);
+    Form_Gral->Show_DrenLT_Swtch->Text=temp_string;
+	sprintf(temp_string,"%5.1f", ModHidro.GrpSens.DrenLT.Offset);
+    Form_Gral->Show_DrenLT_Offset->Text=temp_string;
+	sprintf(temp_string,"%5.1f", ModHidro.GrpSens.DrenLT.val);
+    Form_Gral->Show_DrenLT_Val->Text=temp_string;
+
+
+   //Actualiza Datos del sensor de alto nivel de Tanque
+	Form_Gral->Show_TKLSH_Max->Text=IntToStr((int)ModHidro.GrpSens.TkLSH.max.dwrd);
+	Form_Gral->Show_TKLSH_Min->Text=IntToStr((int)ModHidro.GrpSens.TkLSH.min.dwrd);
+	Form_Gral->Show_TKLSH_ADVal->Text=IntToStr((int)ModHidro.GrpSens.TkLSH.ADval.dwrd);
+	sprintf(temp_string,"%5.1f", ModHidro.GrpSens.TkLSH.lng);
+    Form_Gral->Show_TKLSH_Lng->Text=temp_string;
+	sprintf(temp_string,"%5.1f", ModHidro.GrpSens.TkLSH.swtch);
+    Form_Gral->Show_TKLSH_Swtch->Text=temp_string;
+	sprintf(temp_string,"%5.1f", ModHidro.GrpSens.TkLSH.Offset);
+    Form_Gral->Show_TKLSH_Offset->Text=temp_string;
+	sprintf(temp_string,"%5.1f", ModHidro.GrpSens.TkLSH.val);
+    Form_Gral->Show_TKLSH_Val->Text=temp_string;
+
+
+    //Actualiza Datos del sensor de Bajo nivel de Tanque
+	Form_Gral->Show_TKLSL_Max->Text=IntToStr((int)ModHidro.GrpSens.TkLSL.max.dwrd);
+	Form_Gral->Show_TKLSL_Min->Text=IntToStr((int)ModHidro.GrpSens.TkLSL.min.dwrd);
+	Form_Gral->Show_TKLSL_ADVal->Text=IntToStr((int)ModHidro.GrpSens.TkLSL.ADval.dwrd);
+	sprintf(temp_string,"%5.1f", ModHidro.GrpSens.TkLSL.lng);
+    Form_Gral->Show_TKLSL_Lng->Text=temp_string;
+	sprintf(temp_string,"%5.1f", ModHidro.GrpSens.TkLSL.swtch);
+    Form_Gral->Show_TKLSL_Swtch->Text=temp_string;
+	sprintf(temp_string,"%5.1f", ModHidro.GrpSens.TkLSL.Offset);
+    Form_Gral->Show_TKLSL_Offset->Text=temp_string;
+	sprintf(temp_string,"%5.1f", ModHidro.GrpSens.TkLSL.val);
+    Form_Gral->Show_TKLSL_Val->Text=temp_string;
+
+	//Actualiza Datos del control de Modulo 1
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerMod1.TOn.hms.hor,ModHidro.Grp1Tmrs.TimerMod1.TOn.hms.min,ModHidro.Grp1Tmrs.TimerMod1.TOn.hms.seg);
+	Form_Gral->Show_Mod1_TOn->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerMod1.TOff.hms.hor,ModHidro.Grp1Tmrs.TimerMod1.TOff.hms.min,ModHidro.Grp1Tmrs.TimerMod1.TOff.hms.seg);
+	Form_Gral->Show_Mod1_TOff->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerMod1.TimeOn.hms.hor,ModHidro.Grp1Tmrs.TimerMod1.TimeOn.hms.min,ModHidro.Grp1Tmrs.TimerMod1.TimeOn.hms.seg);
+	Form_Gral->Show_Mod1_TROn->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerMod1.Timer.hms.hor,ModHidro.Grp1Tmrs.TimerMod1.Timer.hms.min,ModHidro.Grp1Tmrs.TimerMod1.Timer.hms.seg);
+	Form_Gral->Show_Mod1_TMR->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerMod1.Frec.hms.hor,ModHidro.Grp1Tmrs.TimerMod1.Frec.hms.min,ModHidro.Grp1Tmrs.TimerMod1.Frec.hms.seg);
+	Form_Gral->Show_Mod1_TRFr->Text= temp_string;
+
+	if(ModHidro.Status.Stt1.dwrd & STAT_MHI_MOD1)
+	{
+		Form_Gral->Led_Mod1_Stt->Brush->Color=clLime;
+		Form_Gral->Label_Mod1_Stt->Caption="On";
+	}
+	else
+	{
+		Form_Gral->Led_Mod1_Stt->Brush->Color=clRed;
+		Form_Gral->Label_Mod1_Stt->Caption= "Off";
+	}
+
+	if(ModHidro.Status.Stt1.dwrd & STAT_MHI_MOD1_INTER)
+	{
+		Form_Gral->Led_Mod1_Per->Brush->Color=clLime;
+		Form_Gral->Label_Mod1_Per->Caption="On";
+	}
+	else
+	{
+		Form_Gral->Led_Mod1_Per->Brush->Color=clRed;
+		Form_Gral->Label_Mod1_Per->Caption= "Off";
+	}
+
+	//Actualiza Datos del control de Modulo 2
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerMod2.TOn.hms.hor,ModHidro.Grp1Tmrs.TimerMod2.TOn.hms.min,ModHidro.Grp1Tmrs.TimerMod2.TOn.hms.seg);
+	Form_Gral->Show_Mod2_TOn->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerMod2.TOff.hms.hor,ModHidro.Grp1Tmrs.TimerMod2.TOff.hms.min,ModHidro.Grp1Tmrs.TimerMod2.TOff.hms.seg);
+	Form_Gral->Show_Mod2_TOff->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerMod2.TimeOn.hms.hor,ModHidro.Grp1Tmrs.TimerMod2.TimeOn.hms.min,ModHidro.Grp1Tmrs.TimerMod2.TimeOn.hms.seg);
+	Form_Gral->Show_Mod2_TROn->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerMod2.Timer.hms.hor,ModHidro.Grp1Tmrs.TimerMod2.Timer.hms.min,ModHidro.Grp1Tmrs.TimerMod2.Timer.hms.seg);
+	Form_Gral->Show_Mod2_TMR->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerMod2.Frec.hms.hor,ModHidro.Grp1Tmrs.TimerMod2.Frec.hms.min,ModHidro.Grp1Tmrs.TimerMod2.Frec.hms.seg);
+	Form_Gral->Show_Mod2_TRFr->Text= temp_string;
+
+ 	if(ModHidro.Status.Stt1.dwrd & STAT_MHI_MOD2)
+	{
+		Form_Gral->Led_Mod2_Stt->Brush->Color=clLime;
+		Form_Gral->Label_Mod2_Stt->Caption= "On";
+	}
+	else
+	{
+		Form_Gral->Led_Mod2_Stt->Brush->Color=clRed;
+		Form_Gral->Label_Mod2_Stt->Caption= "Off";
+	}
+
+
+	if(ModHidro.Status.Stt1.dwrd & STAT_MHI_MOD2_INTER)
+	{
+		Form_Gral->Led_Mod2_Per->Brush->Color=clLime;
+		Form_Gral->Label_Mod2_Per->Caption="On";
+	}
+	else
+	{
+		Form_Gral->Led_Mod2_Per->Brush->Color=clRed;
+		Form_Gral->Label_Mod2_Per->Caption= "Off";
+	}
+
+	//Actualiza Datos del control de Modulo 3
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerMod3.TOn.hms.hor,ModHidro.Grp1Tmrs.TimerMod3.TOn.hms.min,ModHidro.Grp1Tmrs.TimerMod3.TOn.hms.seg);
+	Form_Gral->Show_Mod3_TOn->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerMod3.TOff.hms.hor,ModHidro.Grp1Tmrs.TimerMod3.TOff.hms.min,ModHidro.Grp1Tmrs.TimerMod3.TOff.hms.seg);
+	Form_Gral->Show_Mod3_TOff->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerMod3.TimeOn.hms.hor,ModHidro.Grp1Tmrs.TimerMod3.TimeOn.hms.min,ModHidro.Grp1Tmrs.TimerMod3.TimeOn.hms.seg);
+	Form_Gral->Show_Mod3_TROn->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerMod3.Timer.hms.hor,ModHidro.Grp1Tmrs.TimerMod3.Timer.hms.min,ModHidro.Grp1Tmrs.TimerMod3.Timer.hms.seg);
+	Form_Gral->Show_Mod3_TMR->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerMod3.Frec.hms.hor,ModHidro.Grp1Tmrs.TimerMod3.Frec.hms.min,ModHidro.Grp1Tmrs.TimerMod3.Frec.hms.seg);
+	Form_Gral->Show_Mod3_TRFr->Text= temp_string;
+
+	if(ModHidro.Status.Stt1.dwrd & STAT_MHI_MOD3)
+	{
+		Form_Gral->Led_Mod3_Stt->Brush->Color=clLime;
+		Form_Gral->Label_Mod3_Stt->Caption= "On";
+	}
+	else
+	{
+		Form_Gral->Led_Mod3_Stt->Brush->Color=clRed;
+		Form_Gral->Label_Mod3_Stt->Caption= "Off";
+	}
+
+	if(ModHidro.Status.Stt1.dwrd & STAT_MHI_MOD3_INTER)
+	{
+		Form_Gral->Led_Mod3_Per->Brush->Color=clLime;
+		Form_Gral->Label_Mod3_Per->Caption="On";
+	}
+	else
+	{
+		Form_Gral->Led_Mod3_Per->Brush->Color=clRed;
+		Form_Gral->Label_Mod3_Per->Caption= "Off";
+	}
+
+	//Actualiza Datos del control de Modulo 4
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerMod4.TOn.hms.hor,ModHidro.Grp1Tmrs.TimerMod4.TOn.hms.min,ModHidro.Grp1Tmrs.TimerMod4.TOn.hms.seg);
+	Form_Gral->Show_Mod4_TOn->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerMod4.TOff.hms.hor,ModHidro.Grp1Tmrs.TimerMod4.TOff.hms.min,ModHidro.Grp1Tmrs.TimerMod4.TOff.hms.seg);
+	Form_Gral->Show_Mod4_TOff->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerMod4.TimeOn.hms.hor,ModHidro.Grp1Tmrs.TimerMod4.TimeOn.hms.min,ModHidro.Grp1Tmrs.TimerMod4.TimeOn.hms.seg);
+	Form_Gral->Show_Mod4_TROn->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerMod4.Timer.hms.hor,ModHidro.Grp1Tmrs.TimerMod4.Timer.hms.min,ModHidro.Grp1Tmrs.TimerMod4.Timer.hms.seg);
+	Form_Gral->Show_Mod4_TMR->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerMod4.Frec.hms.hor,ModHidro.Grp1Tmrs.TimerMod4.Frec.hms.min,ModHidro.Grp1Tmrs.TimerMod4.Frec.hms.seg);
+	Form_Gral->Show_Mod4_TRFr->Text= temp_string;
+
+	if(ModHidro.Status.Stt1.dwrd & STAT_MHI_MOD4)
+	{
+		Form_Gral->Led_Mod4_Stt->Brush->Color=clLime;
+		Form_Gral->Label_Mod4_Stt->Caption= "On";
+	}
+	else
+	{
+		Form_Gral->Led_Mod4_Stt->Brush->Color=clRed;
+		Form_Gral->Label_Mod4_Stt->Caption= "Off";
+	}
+
+	if(ModHidro.Status.Stt1.dwrd & STAT_MHI_MOD4_INTER)
+	{
+		Form_Gral->Led_Mod4_Per->Brush->Color=clLime;
+		Form_Gral->Label_Mod4_Per->Caption="On";
+	}
+	else
+	{
+		Form_Gral->Led_Mod4_Per->Brush->Color=clRed;
+		Form_Gral->Label_Mod4_Per->Caption= "Off";
+	}
+
+	//Actualiza Datos del control de Modulo 5
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerMod5.TOn.hms.hor,ModHidro.Grp1Tmrs.TimerMod5.TOn.hms.min,ModHidro.Grp1Tmrs.TimerMod5.TOn.hms.seg);
+	Form_Gral->Show_Mod5_TOn->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerMod5.TOff.hms.hor,ModHidro.Grp1Tmrs.TimerMod5.TOff.hms.min,ModHidro.Grp1Tmrs.TimerMod5.TOff.hms.seg);
+	Form_Gral->Show_Mod5_TOff->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerMod5.TimeOn.hms.hor,ModHidro.Grp1Tmrs.TimerMod5.TimeOn.hms.min,ModHidro.Grp1Tmrs.TimerMod5.TimeOn.hms.seg);
+	Form_Gral->Show_Mod5_TROn->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerMod5.Timer.hms.hor,ModHidro.Grp1Tmrs.TimerMod5.Timer.hms.min,ModHidro.Grp1Tmrs.TimerMod5.Timer.hms.seg);
+	Form_Gral->Show_Mod5_TMR->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerMod5.Frec.hms.hor,ModHidro.Grp1Tmrs.TimerMod5.Frec.hms.min,ModHidro.Grp1Tmrs.TimerMod5.Frec.hms.seg);
+	Form_Gral->Show_Mod5_TRFr->Text= temp_string;
+
+	if(ModHidro.Status.Stt1.dwrd & STAT_MHI_MOD5)
+	{
+		Form_Gral->Led_Mod5_Stt->Brush->Color=clLime;
+		Form_Gral->Label_Mod5_Stt->Caption= "On";
+	}
+	else
+	{
+		Form_Gral->Led_Mod5_Stt->Brush->Color=clRed;
+		Form_Gral->Label_Mod5_Stt->Caption= "Off";
+	}
+
+	if(ModHidro.Status.Stt1.dwrd & STAT_MHI_MOD5_INTER)
+	{
+		Form_Gral->Led_Mod5_Per->Brush->Color=clLime;
+		Form_Gral->Label_Mod5_Per->Caption="On";
+	}
+	else
+	{
+		Form_Gral->Led_Mod5_Per->Brush->Color=clRed;
+		Form_Gral->Label_Mod5_Per->Caption= "Off";
+	}
+
+
+	//Actualiza Datos del control de Modulo 6
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerMod6.TOn.hms.hor,ModHidro.Grp1Tmrs.TimerMod6.TOn.hms.min,ModHidro.Grp1Tmrs.TimerMod6.TOn.hms.seg);
+	Form_Gral->Show_Mod6_TOn->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerMod6.TOff.hms.hor,ModHidro.Grp1Tmrs.TimerMod6.TOff.hms.min,ModHidro.Grp1Tmrs.TimerMod6.TOff.hms.seg);
+	Form_Gral->Show_Mod6_TOff->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerMod6.TimeOn.hms.hor,ModHidro.Grp1Tmrs.TimerMod6.TimeOn.hms.min,ModHidro.Grp1Tmrs.TimerMod6.TimeOn.hms.seg);
+	Form_Gral->Show_Mod6_TROn->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerMod6.Timer.hms.hor,ModHidro.Grp1Tmrs.TimerMod6.Timer.hms.min,ModHidro.Grp1Tmrs.TimerMod6.Timer.hms.seg);
+	Form_Gral->Show_Mod6_TMR->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp1Tmrs.TimerMod6.Frec.hms.hor,ModHidro.Grp1Tmrs.TimerMod6.Frec.hms.min,ModHidro.Grp1Tmrs.TimerMod6.Frec.hms.seg);
+	Form_Gral->Show_Mod6_TRFr->Text= temp_string;
+
+	if(ModHidro.Status.Stt1.dwrd & STAT_MHI_MOD6)
+	{
+		Form_Gral->Led_Mod6_Stt->Brush->Color=clLime;
+		Form_Gral->Label_Mod6_Stt->Caption= "On";
+	}
+	else
+	{
+		Form_Gral->Led_Mod6_Stt->Brush->Color=clRed;
+		Form_Gral->Label_Mod6_Stt->Caption= "Off";
+	}
+
+
+
+	if(ModHidro.Status.Stt1.dwrd & STAT_MHI_MOD6_INTER)
+	{
+		Form_Gral->Led_Mod6_Per->Brush->Color=clLime;
+		Form_Gral->Label_Mod6_Per->Caption="On";
+	}
+	else
+	{
+		Form_Gral->Led_Mod6_Per->Brush->Color=clRed;
+		Form_Gral->Label_Mod6_Per->Caption= "Off";
+	}
+
+	//Actualiza Datos del control de Modulo 7
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp2Tmrs.TimerMod7.TOn.hms.hor,ModHidro.Grp2Tmrs.TimerMod7.TOn.hms.min,ModHidro.Grp2Tmrs.TimerMod7.TOn.hms.seg);
+	Form_Gral->Show_Mod7_TOn->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp2Tmrs.TimerMod7.TOff.hms.hor,ModHidro.Grp2Tmrs.TimerMod7.TOff.hms.min,ModHidro.Grp2Tmrs.TimerMod7.TOff.hms.seg);
+	Form_Gral->Show_Mod7_TOff->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp2Tmrs.TimerMod7.TimeOn.hms.hor,ModHidro.Grp2Tmrs.TimerMod7.TimeOn.hms.min,ModHidro.Grp2Tmrs.TimerMod7.TimeOn.hms.seg);
+	Form_Gral->Show_Mod7_TROn->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp2Tmrs.TimerMod7.Timer.hms.hor,ModHidro.Grp2Tmrs.TimerMod7.Timer.hms.min,ModHidro.Grp2Tmrs.TimerMod7.Timer.hms.seg);
+	Form_Gral->Show_Mod7_TMR->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp2Tmrs.TimerMod7.Frec.hms.hor,ModHidro.Grp2Tmrs.TimerMod7.Frec.hms.min,ModHidro.Grp2Tmrs.TimerMod7.Frec.hms.seg);
+	Form_Gral->Show_Mod7_TRFr->Text= temp_string;
+
+	if(ModHidro.Status.Stt2.dwrd & STAT2_MHI_MOD7)
+	{
+		Form_Gral->Led_Mod7_Stt->Brush->Color=clLime;
+		Form_Gral->Label_Mod7_Stt->Caption= "On";
+	}
+	else
+	{
+		Form_Gral->Led_Mod7_Stt->Brush->Color=clRed;
+		Form_Gral->Label_Mod7_Stt->Caption= "Off";
+	}
+
+
+
+	if(ModHidro.Status.Stt2.dwrd & STAT2_MHI_MOD7_INTER)
+	{
+		Form_Gral->Led_Mod7_Per->Brush->Color=clLime;
+		Form_Gral->Label_Mod7_Per->Caption="On";
+	}
+	else
+	{
+		Form_Gral->Led_Mod7_Per->Brush->Color=clRed;
+		Form_Gral->Label_Mod7_Per->Caption= "Off";
+	}
+
+	//Actualiza Datos del control de Modulo 8
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp2Tmrs.TimerMod8.TOn.hms.hor,ModHidro.Grp2Tmrs.TimerMod8.TOn.hms.min,ModHidro.Grp2Tmrs.TimerMod8.TOn.hms.seg);
+	Form_Gral->Show_Mod8_TOn->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp2Tmrs.TimerMod8.TOff.hms.hor,ModHidro.Grp2Tmrs.TimerMod8.TOff.hms.min,ModHidro.Grp2Tmrs.TimerMod8.TOff.hms.seg);
+	Form_Gral->Show_Mod8_TOff->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp2Tmrs.TimerMod8.TimeOn.hms.hor,ModHidro.Grp2Tmrs.TimerMod8.TimeOn.hms.min,ModHidro.Grp2Tmrs.TimerMod8.TimeOn.hms.seg);
+	Form_Gral->Show_Mod8_TROn->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp2Tmrs.TimerMod8.Timer.hms.hor,ModHidro.Grp2Tmrs.TimerMod8.Timer.hms.min,ModHidro.Grp2Tmrs.TimerMod8.Timer.hms.seg);
+	Form_Gral->Show_Mod8_TMR->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp2Tmrs.TimerMod8.Frec.hms.hor,ModHidro.Grp2Tmrs.TimerMod8.Frec.hms.min,ModHidro.Grp2Tmrs.TimerMod8.Frec.hms.seg);
+	Form_Gral->Show_Mod8_TRFr->Text= temp_string;
+
+	if(ModHidro.Status.Stt2.dwrd & STAT2_MHI_MOD8)
+	{
+		Form_Gral->Led_Mod8_Stt->Brush->Color=clLime;
+		Form_Gral->Label_Mod8_Stt->Caption= "On";
+	}
+	else
+	{
+		Form_Gral->Led_Mod8_Stt->Brush->Color=clRed;
+		Form_Gral->Label_Mod8_Stt->Caption= "Off";
+	}
+
+
+
+	if(ModHidro.Status.Stt2.dwrd & STAT2_MHI_MOD8_INTER)
+	{
+		Form_Gral->Led_Mod8_Per->Brush->Color=clLime;
+		Form_Gral->Label_Mod8_Per->Caption="On";
+	}
+	else
+	{
+		Form_Gral->Led_Mod8_Per->Brush->Color=clRed;
+		Form_Gral->Label_Mod8_Per->Caption= "Off";
+	}
+
+
+	//Actualiza Datos del control de Modulo 9
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp2Tmrs.TimerMod9.TOn.hms.hor,ModHidro.Grp2Tmrs.TimerMod9.TOn.hms.min,ModHidro.Grp2Tmrs.TimerMod9.TOn.hms.seg);
+	Form_Gral->Show_Mod9_TOn->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp2Tmrs.TimerMod9.TOff.hms.hor,ModHidro.Grp2Tmrs.TimerMod9.TOff.hms.min,ModHidro.Grp2Tmrs.TimerMod9.TOff.hms.seg);
+	Form_Gral->Show_Mod9_TOff->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp2Tmrs.TimerMod9.TimeOn.hms.hor,ModHidro.Grp2Tmrs.TimerMod9.TimeOn.hms.min,ModHidro.Grp2Tmrs.TimerMod9.TimeOn.hms.seg);
+	Form_Gral->Show_Mod9_TROn->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp2Tmrs.TimerMod9.Timer.hms.hor,ModHidro.Grp2Tmrs.TimerMod9.Timer.hms.min,ModHidro.Grp2Tmrs.TimerMod9.Timer.hms.seg);
+	Form_Gral->Show_Mod9_TMR->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp2Tmrs.TimerMod9.Frec.hms.hor,ModHidro.Grp2Tmrs.TimerMod9.Frec.hms.min,ModHidro.Grp2Tmrs.TimerMod9.Frec.hms.seg);
+	Form_Gral->Show_Mod9_TRFr->Text= temp_string;
+
+	if(ModHidro.Status.Stt2.dwrd & STAT2_MHI_MOD9)
+	{
+		Form_Gral->Led_Mod9_Stt->Brush->Color=clLime;
+		Form_Gral->Label_Mod9_Stt->Caption= "On";
+	}
+	else
+	{
+		Form_Gral->Led_Mod9_Stt->Brush->Color=clRed;
+		Form_Gral->Label_Mod9_Stt->Caption= "Off";
+	}
+
+
+
+	if(ModHidro.Status.Stt2.dwrd & STAT2_MHI_MOD9_INTER)
+	{
+		Form_Gral->Led_Mod9_Per->Brush->Color=clLime;
+		Form_Gral->Label_Mod9_Per->Caption="On";
+	}
+	else
+	{
+		Form_Gral->Led_Mod9_Per->Brush->Color=clRed;
+		Form_Gral->Label_Mod9_Per->Caption= "Off";
+	}
+
+
+
+	//Actualiza Datos del control de Modulo 10
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp2Tmrs.TimerMod10.TOn.hms.hor,ModHidro.Grp2Tmrs.TimerMod10.TOn.hms.min,ModHidro.Grp2Tmrs.TimerMod10.TOn.hms.seg);
+	Form_Gral->Show_Mod10_TOn->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp2Tmrs.TimerMod10.TOff.hms.hor,ModHidro.Grp2Tmrs.TimerMod10.TOff.hms.min,ModHidro.Grp2Tmrs.TimerMod10.TOff.hms.seg);
+	Form_Gral->Show_Mod10_TOff->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp2Tmrs.TimerMod10.TimeOn.hms.hor,ModHidro.Grp2Tmrs.TimerMod10.TimeOn.hms.min,ModHidro.Grp2Tmrs.TimerMod10.TimeOn.hms.seg);
+	Form_Gral->Show_Mod10_TROn->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp2Tmrs.TimerMod10.Timer.hms.hor,ModHidro.Grp2Tmrs.TimerMod10.Timer.hms.min,ModHidro.Grp2Tmrs.TimerMod10.Timer.hms.seg);
+	Form_Gral->Show_Mod10_TMR->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp2Tmrs.TimerMod10.Frec.hms.hor,ModHidro.Grp2Tmrs.TimerMod10.Frec.hms.min,ModHidro.Grp2Tmrs.TimerMod10.Frec.hms.seg);
+	Form_Gral->Show_Mod10_TRFr->Text= temp_string;
+
+	if(ModHidro.Status.Stt2.dwrd & STAT2_MHI_MOD10)
+	{
+		Form_Gral->Led_Mod10_Stt->Brush->Color=clLime;
+		Form_Gral->Label_Mod10_Stt->Caption= "On";
+	}
+	else
+	{
+		Form_Gral->Led_Mod10_Stt->Brush->Color=clRed;
+		Form_Gral->Label_Mod10_Stt->Caption= "Off";
+	}
+
+
+
+	if(ModHidro.Status.Stt2.dwrd & STAT2_MHI_MOD10_INTER)
+	{
+		Form_Gral->Led_Mod10_Per->Brush->Color=clLime;
+		Form_Gral->Label_Mod10_Per->Caption="On";
+	}
+	else
+	{
+		Form_Gral->Led_Mod10_Per->Brush->Color=clRed;
+		Form_Gral->Label_Mod10_Per->Caption= "Off";
+	}
+
+
+
+	//Actualiza Datos del control de Modulo 11
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp2Tmrs.TimerMod11.TOn.hms.hor,ModHidro.Grp2Tmrs.TimerMod11.TOn.hms.min,ModHidro.Grp2Tmrs.TimerMod11.TOn.hms.seg);
+	Form_Gral->Show_Mod11_TOn->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp2Tmrs.TimerMod11.TOff.hms.hor,ModHidro.Grp2Tmrs.TimerMod11.TOff.hms.min,ModHidro.Grp2Tmrs.TimerMod11.TOff.hms.seg);
+	Form_Gral->Show_Mod11_TOff->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp2Tmrs.TimerMod11.TimeOn.hms.hor,ModHidro.Grp2Tmrs.TimerMod11.TimeOn.hms.min,ModHidro.Grp2Tmrs.TimerMod11.TimeOn.hms.seg);
+	Form_Gral->Show_Mod11_TROn->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp2Tmrs.TimerMod11.Timer.hms.hor,ModHidro.Grp2Tmrs.TimerMod11.Timer.hms.min,ModHidro.Grp2Tmrs.TimerMod11.Timer.hms.seg);
+	Form_Gral->Show_Mod11_TMR->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp2Tmrs.TimerMod11.Frec.hms.hor,ModHidro.Grp2Tmrs.TimerMod11.Frec.hms.min,ModHidro.Grp2Tmrs.TimerMod11.Frec.hms.seg);
+	Form_Gral->Show_Mod11_TRFr->Text= temp_string;
+
+	if(ModHidro.Status.Stt2.dwrd & STAT2_MHI_MOD11)
+	{
+		Form_Gral->Led_Mod11_Stt->Brush->Color=clLime;
+		Form_Gral->Label_Mod11_Stt->Caption= "On";
+	}
+	else
+	{
+		Form_Gral->Led_Mod11_Stt->Brush->Color=clRed;
+		Form_Gral->Label_Mod11_Stt->Caption= "Off";
+	}
+
+
+
+	if(ModHidro.Status.Stt2.dwrd & STAT2_MHI_MOD11_INTER)
+	{
+		Form_Gral->Led_Mod11_Per->Brush->Color=clLime;
+		Form_Gral->Label_Mod11_Per->Caption="On";
+	}
+	else
+	{
+		Form_Gral->Led_Mod11_Per->Brush->Color=clRed;
+		Form_Gral->Label_Mod11_Per->Caption= "Off";
+	}
+
+
+
+
+	//Actualiza Datos del control de Modulo 12
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp2Tmrs.TimerMod12.TOn.hms.hor,ModHidro.Grp2Tmrs.TimerMod12.TOn.hms.min,ModHidro.Grp2Tmrs.TimerMod12.TOn.hms.seg);
+	Form_Gral->Show_Mod12_TOn->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp2Tmrs.TimerMod12.TOff.hms.hor,ModHidro.Grp2Tmrs.TimerMod12.TOff.hms.min,ModHidro.Grp2Tmrs.TimerMod12.TOff.hms.seg);
+	Form_Gral->Show_Mod12_TOff->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp2Tmrs.TimerMod12.TimeOn.hms.hor,ModHidro.Grp2Tmrs.TimerMod12.TimeOn.hms.min,ModHidro.Grp2Tmrs.TimerMod12.TimeOn.hms.seg);
+	Form_Gral->Show_Mod12_TROn->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp2Tmrs.TimerMod12.Timer.hms.hor,ModHidro.Grp2Tmrs.TimerMod12.Timer.hms.min,ModHidro.Grp2Tmrs.TimerMod12.Timer.hms.seg);
+	Form_Gral->Show_Mod12_TMR->Text= temp_string;
+	sprintf(temp_string,"%02d:%02d:%02d", ModHidro.Grp2Tmrs.TimerMod12.Frec.hms.hor,ModHidro.Grp2Tmrs.TimerMod12.Frec.hms.min,ModHidro.Grp2Tmrs.TimerMod12.Frec.hms.seg);
+	Form_Gral->Show_Mod12_TRFr->Text= temp_string;
+
+	if(ModHidro.Status.Stt2.dwrd & STAT2_MHI_MOD12)
+	{
+		Form_Gral->Led_Mod12_Stt->Brush->Color=clLime;
+		Form_Gral->Label_Mod12_Stt->Caption= "On";
+	}
+	else
+	{
+		Form_Gral->Led_Mod12_Stt->Brush->Color=clRed;
+		Form_Gral->Label_Mod12_Stt->Caption= "Off";
+	}
+
+
+
+	if(ModHidro.Status.Stt2.dwrd & STAT2_MHI_MOD12_INTER)
+	{
+		Form_Gral->Led_Mod12_Per->Brush->Color=clLime;
+		Form_Gral->Label_Mod12_Per->Caption="On";
+	}
+	else
+	{
+		Form_Gral->Led_Mod12_Per->Brush->Color=clRed;
+		Form_Gral->Label_Mod12_Per->Caption= "Off";
+	}
+
+
+
+
+	if(ModHidro.Status.Stt1.dwrd & STAT_MHI_MAN_AUT)
+		Form_Gral->Bot_Man_Auto->Caption="Automatico";
+	 else
+	   Form_Gral->Bot_Man_Auto->Caption="Manual";
+
+	// Actualizo los datos de Conductividad en Tanque
+	Form_Gral->Show_TKCond_MaxAD->Text=IntToStr((int)ModHidro.GrpSens.TkCond.max.dwrd);
+	sprintf(temp_string,"%5.3f", ModHidro.GrpSens.TkCond.FEsc);
+	Form_Gral->Show_TKCond_FEsc->Text=temp_string;
+	sprintf(temp_string,"%5.1f", ModHidro.GrpSens.TkCond.val);
+	Form_Gral->Show_TKCond_Val->Text=temp_string;
+
+    // Actualizo los datos de Conductividad en Tanque
+	Form_Gral->Show_DrenCond_MaxAD->Text=IntToStr((int)ModHidro.GrpSens.DrenCond.max.dwrd);
+	sprintf(temp_string,"%5.3f", ModHidro.GrpSens.DrenCond.FEsc);
+    Form_Gral->Show_DrenCond_FEsc->Text=temp_string;
+	sprintf(temp_string,"%5.1f", ModHidro.GrpSens.DrenCond.val);
+    Form_Gral->Show_DrenCond_Val->Text=temp_string;
+
+   /*
+	if( ModHidro.GrpSens.DrenLT.val && ModHidro.GrpSens.DrenLT.lng)
+    {
+		Form_Gral->Show_DrenLT_Ind->Height=(int)(129.0*ModHidro.GrpSens.DrenLT.val/ModHidro.GrpSens.DrenLT.lng);
+		Form_Gral->Show_DrenLT_Ind->Top=(int)(536.0+129.0*(1.0-ModHidro.GrpSens.DrenLT.val/ModHidro.GrpSens.DrenLT.lng));
+    }
+  */
+
+  /*
+	if(ModHidro.GrpSens.DrenLSH.val>=ModHidro.GrpSens.DrenLSH.swtch)
+		Form_Gral->Show_DrenLSH_Led->Brush->Color=clRed;
+	else
+		Form_Gral->Show_DrenLSH_Led->Brush->Color=clLime;
+
+	if(ModHidro.GrpSens.DrenLT.val>=ModHidro.GrpSens.DrenLT.swtch)
+		Form_Gral->Show_DrenLT_Led->Brush->Color=clLime;
+	else
+		Form_Gral->Show_DrenLT_Led->Brush->Color=clRed;
+
+	if(ModHidro.GrpSens.TkLSH.val>=ModHidro.GrpSens.TkLSH.swtch)
+		Form_Gral->Show_TKLSH_Led->Brush->Color=clRed;
+    else
+        Form_Gral->Show_TKLSH_Led->Brush->Color=clLime;
+
+	if(ModHidro.GrpSens.TkLSL.val>=ModHidro.GrpSens.TkLSL.swtch)
+		Form_Gral->Show_TKLSL_Led->Brush->Color=clLime;
+	else
+		Form_Gral->Show_TKLSL_Led->Brush->Color=clRed;
+ */
+
+    Form_Gral->Update();
+
+
+  }
+  return;
+
+}
+//---------------------------------------------------------------------------
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_DrenLSH_SwtchKeyPress(TObject *Sender,
+      char &Key)
+{
+  TGrupoSens Refe;
+
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.GrpSens;
+    if(EditAct->Text=="")
+	  Refe.DrenLSH.swtch=0;
+	else
+	  Refe.DrenLSH.swtch=EditAct->Text.ToDouble();
+
+	sendSciMsg(DATA_MHI_SET_SENS, &Refe, sizeof(Refe));
+    Key=0;
+  }
+  else if(!((Key<='9' && Key>='0') || Key=='.' || Key=='\b' || Key=='-'))
+  {
+    Key=0;
+    Beep();
+  }
+
+    return;
+
+
+}
+//---------------------------------------------------------------------------
+void __fastcall TForm_Gral::OutLucesClick(TObject *Sender)
+{
+  TStatus Refe;
+
+	Refe=ModHidro.Status;
+
+ if(Form_Gral->OutLuces->Checked)
+   sendSciMsg(CMD_MHI_STT_MOD3_ON, &Refe, sizeof(ModHidro.Status));
+ else
+   sendSciMsg(CMD_MHI_STT_MOD3_OFF, &Refe, sizeof(ModHidro.Status));
+
+	 return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::ValvulaRiegoClick(TObject *Sender)
+{
+  TStatus Refe;
+
+	Refe=ModHidro.Status;
+
+ if(Form_Gral->ValvulaRiego->Checked)
+	sendSciMsg(CMD_MHI_STT_MOD1_ON, &Refe, sizeof(ModHidro.Status));
+ else
+   sendSciMsg(CMD_MHI_STT_MOD1_OFF, &Refe, sizeof(ModHidro.Status));
+
+ return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::BombaTrasvaseClick(TObject *Sender)
+{
+  TStatus Refe;
+
+    Refe=ModHidro.Status;
+
+ if(Form_Gral->BombaTrasvase->Checked)
+	sendSciMsg(CMD_MHI_STT_MOD5_ON, &Refe, sizeof(ModHidro.Status));
+ else
+   sendSciMsg(CMD_MHI_STT_MOD5_OFF, &Refe, sizeof(ModHidro.Status));
+
+ return;
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::BombaAireClick(TObject *Sender)
+{
+   TStatus Refe;
+
+	Refe=ModHidro.Status;
+
+ if(Form_Gral->BombaAire->Checked)
+	sendSciMsg(CMD_MHI_STT_MOD2_ON, &Refe, sizeof(ModHidro.Status));
+ else
+   sendSciMsg(CMD_MHI_STT_MOD2_OFF, &Refe, sizeof(ModHidro.Status));
+
+ return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_NameKeyPress(TObject *Sender, char &Key)
+{
+  TConstModHidro Refe;
+
+  char *NewName;
+  int i;
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+    Refe=ModHidro.Const;
+    if(EditAct->Text=="")
+      strcpy(Refe.Nombre,"No Name");
+    else
+   	{
+	  NewName=(char *)EditAct->Text.c_str();
+	  for(i=0;i<DIM_NOMBRE_AERO;i++)
+		Refe.Nombre[i]= NewName[2*i];
+	 }
+
+    sendSciMsg(DATA_MHI_SET_CONST, &Refe, sizeof(ModHidro.Const));
+    Key=0;
+  }
+  return;
+
+}
+//---------------------------------------------------------------------------
+
+
+void __fastcall TForm_Gral::Show_TKLSH_MinKeyPress(TObject *Sender,
+      char &Key)
+{
+  TGrupoSens Refe;
+
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.GrpSens;
+    if(EditAct->Text=="")
+      Refe.TkLSH.min.dwrd=0;
+    else
+      Refe.TkLSH.min.dwrd=EditAct->Text.ToInt();
+
+	sendSciMsg(DATA_MHI_SET_SENS, &Refe, sizeof(Refe));
+    Key=0;
+  }
+  else if(!((Key<='9' && Key>='0') || Key=='.' || Key=='\b' || Key=='-'))
+  {
+    Key=0;
+    Beep();
+  }
+  return;
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_TKLSH_MaxKeyPress(TObject *Sender,
+      char &Key)
+{
+  TGrupoSens Refe;
+
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.GrpSens;
+    if(EditAct->Text=="")
+      Refe.TkLSH.max.dwrd=0;
+    else
+      Refe.TkLSH.max.dwrd=EditAct->Text.ToInt();
+
+	sendSciMsg(DATA_MHI_SET_SENS, &Refe, sizeof(Refe));
+    Key=0;
+  }
+  else if(!((Key<='9' && Key>='0') || Key=='.' || Key=='\b' || Key=='-'))
+  {
+    Key=0;
+    Beep();
+  }
+
+  return;
+}
+//---------------------------------------------------------------------------
+
+
+void __fastcall TForm_Gral::Show_TKLSH_LngKeyPress(TObject *Sender,
+      char &Key)
+{
+  TGrupoSens Refe;
+
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.GrpSens;
+    if(EditAct->Text=="")
+      Refe.TkLSH.lng=0;
+    else
+      Refe.TkLSH.lng=EditAct->Text.ToDouble();
+
+	sendSciMsg(DATA_MHI_SET_SENS, &Refe, sizeof(Refe));
+    Key=0;
+  }
+  else if(!((Key<='9' && Key>='0') || Key=='.' || Key=='\b' || Key=='-'))
+  {
+    Key=0;
+    Beep();
+  }
+
+  return;
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_TKLSH_SwtchKeyPress(TObject *Sender,
+      char &Key)
+{
+  TGrupoSens Refe;
+
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.GrpSens;
+    if(EditAct->Text=="")
+      Refe.TkLSH.swtch=0;
+    else
+      Refe.TkLSH.swtch=EditAct->Text.ToDouble();
+
+	sendSciMsg(DATA_MHI_SET_SENS, &Refe, sizeof(Refe));
+    Key=0;
+  }
+  else if(!((Key<='9' && Key>='0') || Key=='.' || Key=='\b' || Key=='-'))
+  {
+    Key=0;
+    Beep();
+  }
+
+  return;
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_DrenLT_SwtchKeyPress(TObject *Sender,
+      char &Key)
+{
+  TGrupoSens Refe;
+
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.GrpSens;
+    if(EditAct->Text=="")
+      Refe.DrenLT.swtch=0;
+    else
+      Refe.DrenLT.swtch=EditAct->Text.ToDouble();
+
+	sendSciMsg(DATA_MHI_SET_SENS, &Refe, sizeof(Refe));
+    Key=0;
+  }
+  else if(!((Key<='9' && Key>='0') || Key=='.' || Key=='\b' || Key=='-'))
+  {
+    Key=0;
+    Beep();
+  }
+
+  return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_DrenLT_LngKeyPress(TObject *Sender,
+      char &Key)
+{
+  TGrupoSens Refe;
+
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.GrpSens;
+    if(EditAct->Text=="")
+      Refe.DrenLT.lng=0;
+    else
+      Refe.DrenLT.lng=EditAct->Text.ToDouble();
+
+	sendSciMsg(DATA_MHI_SET_SENS, &Refe, sizeof(Refe));
+    Key=0;
+  }
+  else if(!((Key<='9' && Key>='0') || Key=='.' || Key=='\b' || Key=='-'))
+  {
+    Key=0;
+    Beep();
+  }
+
+  return;
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_DrenLSH_LngKeyPress(TObject *Sender,
+      char &Key)
+{
+  TGrupoSens Refe;
+
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.GrpSens;
+    if(EditAct->Text=="")
+      Refe.DrenLSH.lng=0;
+    else
+      Refe.DrenLSH.lng=EditAct->Text.ToDouble();
+
+	sendSciMsg(DATA_MHI_SET_SENS, &Refe, sizeof(Refe));
+    Key=0;
+  }
+  else if(!((Key<='9' && Key>='0') || Key=='.' || Key=='\b' || Key=='-'))
+  {
+    Key=0;
+    Beep();
+  }
+
+  return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_TKLSL_LngKeyPress(TObject *Sender,
+      char &Key)
+{
+
+  TGrupoSens Refe;
+
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.GrpSens;
+    if(EditAct->Text=="")
+      Refe.TkLSL.lng=0;
+    else
+      Refe.TkLSL.lng=EditAct->Text.ToDouble();
+
+	sendSciMsg(DATA_MHI_SET_SENS, &Refe, sizeof(Refe));
+    Key=0;
+  }
+  else if(!((Key<='9' && Key>='0') || Key=='.' || Key=='\b' || Key=='-'))
+  {
+    Key=0;
+    Beep();
+  }
+  return;
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_TKLSL_SwtchKeyPress(TObject *Sender,
+      char &Key)
+{
+  TGrupoSens Refe;
+
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.GrpSens;
+    if(EditAct->Text=="")
+      Refe.TkLSL.swtch=0;
+    else
+      Refe.TkLSL.swtch=EditAct->Text.ToDouble();
+
+	sendSciMsg(DATA_MHI_SET_SENS, &Refe, sizeof(Refe));
+    Key=0;
+  }
+  else if(!((Key<='9' && Key>='0') || Key=='.' || Key=='\b' || Key=='-'))
+  {
+    Key=0;
+    Beep();
+  }
+  return;
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_DrenLSH_MaxKeyPress(TObject *Sender,
+      char &Key)
+{
+  TGrupoSens Refe;
+
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.GrpSens;
+    if(EditAct->Text=="")
+      Refe.DrenLSH.max.dwrd=0;
+    else
+      Refe.DrenLSH.max.dwrd=EditAct->Text.ToInt();
+
+	sendSciMsg(DATA_MHI_SET_SENS, &Refe, sizeof(Refe));
+    Key=0;
+  }
+  else if(!((Key<='9' && Key>='0') || Key=='.' || Key=='\b' || Key=='-'))
+  {
+    Key=0;
+    Beep();
+  }
+  return;
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_DrenLSH_MinKeyPress(TObject *Sender,
+      char &Key)
+{
+  TGrupoSens Refe;
+
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.GrpSens;
+    if(EditAct->Text=="")
+      Refe.DrenLSH.min.dwrd=0;
+    else
+      Refe.DrenLSH.min.dwrd=EditAct->Text.ToInt();
+
+	sendSciMsg(DATA_MHI_SET_SENS, &Refe, sizeof(Refe));
+    Key=0;
+  }
+  else if(!((Key<='9' && Key>='0') || Key=='.' || Key=='\b' || Key=='-'))
+  {
+    Key=0;
+    Beep();
+  }
+  return;
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_DrenLT_MaxKeyPress(TObject *Sender,
+      char &Key)
+{
+  TGrupoSens Refe;
+
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.GrpSens;
+    if(EditAct->Text=="")
+      Refe.DrenLT.max.dwrd=0;
+    else
+      Refe.DrenLT.max.dwrd=EditAct->Text.ToInt();
+
+	sendSciMsg(DATA_MHI_SET_SENS, &Refe, sizeof(Refe));
+    Key=0;
+  }
+  else if(!((Key<='9' && Key>='0') || Key=='.' || Key=='\b' || Key=='-'))
+  {
+    Key=0;
+    Beep();
+  }
+  return;
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_DrenLT_MinKeyPress(TObject *Sender,
+      char &Key)
+{
+  TGrupoSens Refe;
+
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.GrpSens;
+    if(EditAct->Text=="")
+      Refe.DrenLT.min.dwrd=0;
+    else
+      Refe.DrenLT.min.dwrd=EditAct->Text.ToInt();
+
+	sendSciMsg(DATA_MHI_SET_SENS, &Refe, sizeof(Refe));
+    Key=0;
+  }
+  else if(!((Key<='9' && Key>='0') || Key=='.' || Key=='\b' || Key=='-'))
+  {
+    Key=0;
+    Beep();
+  }
+  return;
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_TKLSL_MinKeyPress(TObject *Sender,
+      char &Key)
+{
+  TGrupoSens Refe;
+
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.GrpSens;
+    if(EditAct->Text=="")
+      Refe.TkLSL.min.dwrd=0;
+    else
+      Refe.TkLSL.min.dwrd=EditAct->Text.ToInt();
+
+	sendSciMsg(DATA_MHI_SET_SENS, &Refe, sizeof(Refe));
+    Key=0;
+  }
+  else if(!((Key<='9' && Key>='0') || Key=='.' || Key=='\b' || Key=='-'))
+  {
+    Key=0;
+    Beep();
+  }
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_TKLSL_MaxKeyPress(TObject *Sender,
+      char &Key)
+{
+  TGrupoSens Refe;
+
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.GrpSens;
+    if(EditAct->Text=="")
+      Refe.TkLSL.max.dwrd=0;
+    else
+      Refe.TkLSL.max.dwrd=EditAct->Text.ToInt();
+
+	sendSciMsg(DATA_MHI_SET_SENS, &Refe, sizeof(Refe));
+    Key=0;
+  }
+  else if(!((Key<='9' && Key>='0') || Key=='.' || Key=='\b' || Key=='-'))
+  {
+    Key=0;
+    Beep();
+  }
+
+   return;
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Hora_DispKeyPress(TObject *Sender,
+      char &Key)
+{
+  TTimerGral Refe;
+
+ int h,m,s,i;
+ char *text, Temp[8];
+ TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp1Tmrs.TimerGral;
+    if(EditAct->Text=="")
+      Refe.Time.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+      Refe.Time.hms.hor=h;
+      Refe.Time.hms.min=m;
+      Refe.Time.hms.seg=s;
+    }
+	sendSciMsg(DATA_MHI_SET_TIMEGRAL, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod1_TOnKeyPress(TObject *Sender,
+      char &Key)
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp1Tmrs.TimerMod1;
+	if(EditAct->Text=="")
+	  Refe.TOn.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.TOn.hms.hor=h;
+	  Refe.TOn.hms.min=m;
+	  Refe.TOn.hms.seg=s;
+	}
+	sendSciMsg(DATA_MHI_SET_TIMER_M1, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod1_TOffKeyPress(TObject *Sender,
+      char &Key)
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp1Tmrs.TimerMod1;
+    if(EditAct->Text=="")
+      Refe.TOff.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.TOff.hms.hor=h;
+      Refe.TOff.hms.min=m;
+      Refe.TOff.hms.seg=s;
+    }
+	sendSciMsg(DATA_MHI_SET_TIMER_M1, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod1_TROnKeyPress(TObject *Sender,
+      char &Key)
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp1Tmrs.TimerMod1;
+    if(EditAct->Text=="")
+      Refe.TimeOn.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.TimeOn.hms.hor=h;
+      Refe.TimeOn.hms.min=m;
+      Refe.TimeOn.hms.seg=s;
+    }
+	sendSciMsg(DATA_MHI_SET_TIMER_M1, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod1_TRFrKeyPress(TObject *Sender,
+      char &Key)
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp1Tmrs.TimerMod1;
+    if(EditAct->Text=="")
+      Refe.Frec.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.Frec.hms.hor=h;
+      Refe.Frec.hms.min=m;
+      Refe.Frec.hms.seg=s;
+    }
+	sendSciMsg(DATA_MHI_SET_TIMER_M1, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Bot_Man_AutoClick(TObject *Sender)
+{
+  TStatus Refe;
+
+  Refe=ModHidro.Status;
+
+  if(Form_Gral->Bot_Man_Auto->Caption=="Automatico")
+      sendSciMsg(CMD_MHI_STT_AUTO_OFF, &Refe, sizeof(ModHidro.Status));
+  else
+      sendSciMsg(CMD_MHI_STT_AUTO_ON, &Refe, sizeof(ModHidro.Status));
+
+  return;
+
+}
+//---------------------------------------------------------------------------
+void __fastcall TForm_Gral::Show_Time_IniDiaKeyPress(TObject *Sender,
+      char &Key)
+{
+  TTimerGral Refe;
+
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp1Tmrs.TimerGral;
+    if(EditAct->Text=="")
+      Refe.IniDia.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.IniDia.hms.hor=h;
+	  Refe.IniDia.hms.min=m;
+	  Refe.IniDia.hms.seg=s;
+	}
+    sendSciMsg(DATA_MHI_SET_TIMEGRAL, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Box_Mod1_InterClick(TObject *Sender)
+{
+/*
+  TDato32 Refe;
+
+	Refe=ModHidro.Status;
+
+ if(Form_Gral->Box_Mod1_Inter->Checked)
+	sendSciMsg(CMD_MHI_STT_MOD1_INTON, &Refe, sizeof(ModHidro.Status));
+ else
+   sendSciMsg(CMD_MHI_STT_MOD1_INTOFF, &Refe, sizeof(ModHidro.Status));
+ */
+	 return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Time_IniMedKeyPress(TObject *Sender,
+      char &Key)
+{
+  TTimerGral Refe;
+
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp1Tmrs.TimerGral;
+    if(EditAct->Text=="")
+      Refe.IniMed.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.IniMed.hms.hor=h;
+      Refe.IniMed.hms.min=m;
+      Refe.IniMed.hms.seg=s;
+    }
+    sendSciMsg(DATA_MHI_SET_TIMEGRAL, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Time_FinMedKeyPress(TObject *Sender,
+      char &Key)
+{
+  TTimerGral Refe;
+
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp1Tmrs.TimerGral;
+    if(EditAct->Text=="")
+      Refe.FinMed.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.FinMed.hms.hor=h;
+      Refe.FinMed.hms.min=m;
+      Refe.FinMed.hms.seg=s;
+    }
+    sendSciMsg(DATA_MHI_SET_TIMEGRAL, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Time_FinDiaKeyPress(TObject *Sender,
+      char &Key)
+{
+  TTimerGral Refe;
+
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp1Tmrs.TimerGral;
+    if(EditAct->Text=="")
+      Refe.FinDia.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.FinDia.hms.hor=h;
+      Refe.FinDia.hms.min=m;
+      Refe.FinDia.hms.seg=s;
+    }
+    sendSciMsg(DATA_MHI_SET_TIMEGRAL, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::ValvulaAguaClick(TObject *Sender)
+{
+  TStatus Refe;
+
+	Refe=ModHidro.Status;
+
+ if(Form_Gral->ValvulaAgua->Checked)
+	sendSciMsg(CMD_MHI_STT_MOD4_ON, &Refe, sizeof(ModHidro.Status));
+ else
+   sendSciMsg(CMD_MHI_STT_MOD4_OFF, &Refe, sizeof(ModHidro.Status));
+
+	 return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_TKLSL_OffsetKeyPress(TObject *Sender,
+      char &Key)
+{
+
+  TGrupoSens Refe;
+
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.GrpSens;
+    if(EditAct->Text=="")
+      Refe.TkLSL.Offset=0;
+    else
+      Refe.TkLSL.Offset=EditAct->Text.ToDouble();
+
+	sendSciMsg(DATA_MHI_SET_SENS, &Refe, sizeof(Refe));
+    Key=0;
+  }
+  else if(!((Key<='9' && Key>='0') || Key=='.' || Key=='\b' || Key=='-'))
+  {
+    Key=0;
+    Beep();
+  }
+  return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_TKLSH_OffsetKeyPress(TObject *Sender,
+      char &Key)
+{
+  TGrupoSens Refe;
+
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.GrpSens;
+    if(EditAct->Text=="")
+      Refe.TkLSH.Offset=0;
+    else
+      Refe.TkLSH.Offset=EditAct->Text.ToDouble();
+
+	sendSciMsg(DATA_MHI_SET_SENS, &Refe, sizeof(Refe));
+    Key=0;
+  }
+  else if(!((Key<='9' && Key>='0') || Key=='.' || Key=='\b' || Key=='-'))
+  {
+    Key=0;
+    Beep();
+  }
+  return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_DrenLT_OffsetKeyPress(TObject *Sender,
+      char &Key)
+{
+  TGrupoSens Refe;
+
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.GrpSens;
+    if(EditAct->Text=="")
+      Refe.DrenLT.Offset=0;
+    else
+      Refe.DrenLT.Offset=EditAct->Text.ToDouble();
+
+	sendSciMsg(DATA_MHI_SET_SENS, &Refe, sizeof(Refe));
+    Key=0;
+  }
+  else if(!((Key<='9' && Key>='0') || Key=='.' || Key=='\b' || Key=='-'))
+  {
+    Key=0;
+    Beep();
+  }
+  return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_DrenLSH_OffsetKeyPress(TObject *Sender,
+      char &Key)
+{
+  TGrupoSens Refe;
+
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.GrpSens;
+    if(EditAct->Text=="")
+      Refe.DrenLSH.Offset=0;
+    else
+      Refe.DrenLSH.Offset=EditAct->Text.ToDouble();
+
+	sendSciMsg(DATA_MHI_SET_SENS, &Refe, sizeof(Refe));
+    Key=0;
+  }
+  else if(!((Key<='9' && Key>='0') || Key=='.' || Key=='\b' || Key=='-'))
+  {
+    Key=0;
+    Beep();
+  }
+  return;
+
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_TKCond_FEscKeyPress(TObject *Sender,
+      char &Key)
+{
+  TGrupoSens Refe;
+
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.GrpSens;
+    if(EditAct->Text=="")
+      Refe.TkCond.FEsc=0;
+    else
+      Refe.TkCond.FEsc=EditAct->Text.ToDouble();
+
+	sendSciMsg(DATA_MHI_SET_SENS, &Refe, sizeof(Refe));
+    Key=0;
+  }
+  else if(!((Key<='9' && Key>='0') || Key=='.' || Key=='\b' || Key=='-'))
+  {
+    Key=0;
+    Beep();
+  }
+  return;
+
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_DrenCond_FEscKeyPress(TObject *Sender,
+      char &Key)
+{
+  TGrupoSens Refe;
+
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.GrpSens;
+    if(EditAct->Text=="")
+      Refe.DrenCond.FEsc=0;
+    else
+      Refe.DrenCond.FEsc=EditAct->Text.ToDouble();
+
+	sendSciMsg(DATA_MHI_SET_SENS, &Refe, sizeof(Refe));
+    Key=0;
+  }
+  else if(!((Key<='9' && Key>='0') || Key=='.' || Key=='\b' || Key=='-'))
+  {
+    Key=0;
+    Beep();
+  }
+  return;
+
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::But_SincronizarClick(TObject *Sender)
+{
+  TTimerGral Refe;
+
+  int h,m,s;
+  TEdit *EditAct=(TEdit*)Sender;
+  time_t t=time(NULL);
+  struct tm tm=*localtime(&t);
+
+  Refe=ModHidro.Grp1Tmrs.TimerGral;
+
+
+  Refe.Time.hms.hor=tm.tm_hour;
+  Refe.Time.hms.min=tm.tm_min;
+  Refe.Time.hms.seg=tm.tm_sec;
+  sendSciMsg(DATA_MHI_SET_TIMEGRAL, &Refe, sizeof(Refe));
+
+  return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Box_Mod3_InterClick(TObject *Sender)
+{
+/*
+ TDato32 Refe;
+
+ Refe=ModHidro.Status;
+
+ if(Form_Gral->Box_Mod3_Inter->Checked)
+	sendSciMsg(CMD_MHI_STT_MOD2_INTON, &Refe, sizeof(ModHidro.Status));
+ else
+   sendSciMsg(CMD_MHI_STT_MOD2_INTOFF, &Refe, sizeof(ModHidro.Status));
+ */
+	 return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Box_Mod2_InterClick(TObject *Sender)
+{
+ TDato32 Refe;
+ /*
+ Refe=ModHidro.Status;
+
+ if(Form_Gral->Box_Mod2_Inter->Checked)
+	sendSciMsg(CMD_MHI_STT_MOD3_INTON, &Refe, sizeof(ModHidro.Status));
+ else
+   sendSciMsg(CMD_MHI_STT_MOD3_INTOFF, &Refe, sizeof(ModHidro.Status));
+ */
+	 return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod2_TRFrKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp1Tmrs.TimerMod2;
+	if(EditAct->Text=="")
+	  Refe.Frec.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.Frec.hms.hor=h;
+      Refe.Frec.hms.min=m;
+	  Refe.Frec.hms.seg=s;
+	}
+	sendSciMsg(DATA_MHI_SET_TIMER_M2, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod3_TRFrKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp1Tmrs.TimerMod3;
+	if(EditAct->Text=="")
+	  Refe.Frec.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.Frec.hms.hor=h;
+      Refe.Frec.hms.min=m;
+	  Refe.Frec.hms.seg=s;
+	}
+	sendSciMsg(DATA_MHI_SET_TIMER_M3, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod4_TRFrKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp1Tmrs.TimerMod4;
+	if(EditAct->Text=="")
+	  Refe.Frec.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.Frec.hms.hor=h;
+      Refe.Frec.hms.min=m;
+	  Refe.Frec.hms.seg=s;
+	}
+	sendSciMsg(DATA_MHI_SET_TIMER_M4, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod5_TRFrKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp1Tmrs.TimerMod5;
+	if(EditAct->Text=="")
+	  Refe.Frec.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.Frec.hms.hor=h;
+      Refe.Frec.hms.min=m;
+	  Refe.Frec.hms.seg=s;
+	}
+	sendSciMsg(DATA_MHI_SET_TIMER_M5, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod6_TRFrKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp1Tmrs.TimerMod6;
+	if(EditAct->Text=="")
+	  Refe.Frec.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.Frec.hms.hor=h;
+      Refe.Frec.hms.min=m;
+	  Refe.Frec.hms.seg=s;
+	}
+	sendSciMsg(DATA_MHI_SET_TIMER_M6, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod2_TROnKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp1Tmrs.TimerMod2;
+    if(EditAct->Text=="")
+      Refe.TimeOn.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.TimeOn.hms.hor=h;
+      Refe.TimeOn.hms.min=m;
+      Refe.TimeOn.hms.seg=s;
+    }
+	sendSciMsg(DATA_MHI_SET_TIMER_M2, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod3_TROnKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp1Tmrs.TimerMod3;
+    if(EditAct->Text=="")
+      Refe.TimeOn.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.TimeOn.hms.hor=h;
+      Refe.TimeOn.hms.min=m;
+      Refe.TimeOn.hms.seg=s;
+    }
+	sendSciMsg(DATA_MHI_SET_TIMER_M3, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod4_TROnKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp1Tmrs.TimerMod4;
+    if(EditAct->Text=="")
+      Refe.TimeOn.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.TimeOn.hms.hor=h;
+      Refe.TimeOn.hms.min=m;
+      Refe.TimeOn.hms.seg=s;
+    }
+	sendSciMsg(DATA_MHI_SET_TIMER_M4, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod5_TROnKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp1Tmrs.TimerMod5;
+    if(EditAct->Text=="")
+      Refe.TimeOn.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.TimeOn.hms.hor=h;
+      Refe.TimeOn.hms.min=m;
+      Refe.TimeOn.hms.seg=s;
+    }
+	sendSciMsg(DATA_MHI_SET_TIMER_M5, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod6_TROnKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp1Tmrs.TimerMod6;
+    if(EditAct->Text=="")
+      Refe.TimeOn.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.TimeOn.hms.hor=h;
+      Refe.TimeOn.hms.min=m;
+      Refe.TimeOn.hms.seg=s;
+    }
+	sendSciMsg(DATA_MHI_SET_TIMER_M6, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod2_TOffKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp1Tmrs.TimerMod2;
+    if(EditAct->Text=="")
+      Refe.TOff.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.TOff.hms.hor=h;
+      Refe.TOff.hms.min=m;
+      Refe.TOff.hms.seg=s;
+    }
+	sendSciMsg(DATA_MHI_SET_TIMER_M2, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod3_TOffKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp1Tmrs.TimerMod3;
+    if(EditAct->Text=="")
+      Refe.TOff.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.TOff.hms.hor=h;
+      Refe.TOff.hms.min=m;
+      Refe.TOff.hms.seg=s;
+    }
+	sendSciMsg(DATA_MHI_SET_TIMER_M3, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod4_TOffKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp1Tmrs.TimerMod4;
+    if(EditAct->Text=="")
+      Refe.TOff.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.TOff.hms.hor=h;
+      Refe.TOff.hms.min=m;
+      Refe.TOff.hms.seg=s;
+    }
+	sendSciMsg(DATA_MHI_SET_TIMER_M4, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod5_TOffKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp1Tmrs.TimerMod5;
+    if(EditAct->Text=="")
+      Refe.TOff.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.TOff.hms.hor=h;
+      Refe.TOff.hms.min=m;
+      Refe.TOff.hms.seg=s;
+    }
+	sendSciMsg(DATA_MHI_SET_TIMER_M5, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod6_TOffKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp1Tmrs.TimerMod6;
+    if(EditAct->Text=="")
+      Refe.TOff.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.TOff.hms.hor=h;
+      Refe.TOff.hms.min=m;
+      Refe.TOff.hms.seg=s;
+    }
+	sendSciMsg(DATA_MHI_SET_TIMER_M6, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod2_TOnKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp1Tmrs.TimerMod2;
+    if(EditAct->Text=="")
+      Refe.TOn.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.TOn.hms.hor=h;
+      Refe.TOn.hms.min=m;
+      Refe.TOn.hms.seg=s;
+    }
+	sendSciMsg(DATA_MHI_SET_TIMER_M2, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod3_TOnKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp1Tmrs.TimerMod3;
+    if(EditAct->Text=="")
+      Refe.TOn.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.TOn.hms.hor=h;
+      Refe.TOn.hms.min=m;
+      Refe.TOn.hms.seg=s;
+    }
+	sendSciMsg(DATA_MHI_SET_TIMER_M3, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod4_TOnKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp1Tmrs.TimerMod4;
+    if(EditAct->Text=="")
+      Refe.TOn.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.TOn.hms.hor=h;
+      Refe.TOn.hms.min=m;
+      Refe.TOn.hms.seg=s;
+    }
+	sendSciMsg(DATA_MHI_SET_TIMER_M4, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod5_TOnKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp1Tmrs.TimerMod5;
+    if(EditAct->Text=="")
+      Refe.TOn.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.TOn.hms.hor=h;
+      Refe.TOn.hms.min=m;
+      Refe.TOn.hms.seg=s;
+    }
+	sendSciMsg(DATA_MHI_SET_TIMER_M5, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod6_TOnKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp1Tmrs.TimerMod6;
+    if(EditAct->Text=="")
+      Refe.TOn.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.TOn.hms.hor=h;
+      Refe.TOn.hms.min=m;
+      Refe.TOn.hms.seg=s;
+    }
+	sendSciMsg(DATA_MHI_SET_TIMER_M6, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod1_RstClick(TObject *Sender)
+{
+  TTimerOut Refe;
+
+  Refe=ModHidro.Grp1Tmrs.TimerMod1;
+  Refe.Timer.ttl.dwrd=0;
+  sendSciMsg(DATA_MHI_SET_TIMER_M1, &Refe, sizeof(Refe));
+
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod1_SttClick(TObject *Sender)
+{
+ TStatus Refe;
+
+ Refe=ModHidro.Status;
+
+ if(Form_Gral->Led_Mod1_Stt->Brush->Color == clRed)
+	sendSciMsg(CMD_MHI_STT_MOD1_ON, &Refe, sizeof(ModHidro.Status));
+ else
+   sendSciMsg(CMD_MHI_STT_MOD1_OFF, &Refe, sizeof(ModHidro.Status));
+
+ return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod2_SttClick(TObject *Sender)
+{
+ TStatus Refe;
+
+ Refe=ModHidro.Status;
+
+ if(Form_Gral->Led_Mod2_Stt->Brush->Color == clRed)
+	sendSciMsg(CMD_MHI_STT_MOD2_ON, &Refe, sizeof(ModHidro.Status));
+ else
+   sendSciMsg(CMD_MHI_STT_MOD2_OFF, &Refe, sizeof(ModHidro.Status));
+
+ return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod3_SttClick(TObject *Sender)
+{
+ TStatus Refe;
+
+ Refe=ModHidro.Status;
+
+ if(Form_Gral->Led_Mod3_Stt->Brush->Color == clRed)
+	sendSciMsg(CMD_MHI_STT_MOD3_ON, &Refe, sizeof(ModHidro.Status));
+ else
+   sendSciMsg(CMD_MHI_STT_MOD3_OFF, &Refe, sizeof(ModHidro.Status));
+
+
+ return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod4_SttClick(TObject *Sender)
+{
+ TStatus Refe;
+
+ Refe=ModHidro.Status;
+
+ if(Form_Gral->Led_Mod4_Stt->Brush->Color == clRed)
+	sendSciMsg(CMD_MHI_STT_MOD4_ON, &Refe, sizeof(ModHidro.Status));
+ else
+   sendSciMsg(CMD_MHI_STT_MOD4_OFF, &Refe, sizeof(ModHidro.Status));
+
+ return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod5_SttClick(TObject *Sender)
+{
+ TStatus Refe;
+
+ Refe=ModHidro.Status;
+
+ if(Form_Gral->Led_Mod5_Stt->Brush->Color == clRed)
+	sendSciMsg(CMD_MHI_STT_MOD5_ON, &Refe, sizeof(ModHidro.Status));
+ else
+   sendSciMsg(CMD_MHI_STT_MOD5_OFF, &Refe, sizeof(ModHidro.Status));
+
+ return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod6_SttClick(TObject *Sender)
+{
+ TStatus Refe;
+
+ Refe=ModHidro.Status;
+
+ if(Form_Gral->Led_Mod6_Stt->Brush->Color == clRed)
+	sendSciMsg(CMD_MHI_STT_MOD6_ON, &Refe, sizeof(ModHidro.Status));
+ else
+   sendSciMsg(CMD_MHI_STT_MOD6_OFF, &Refe, sizeof(ModHidro.Status));
+
+ return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod1_PerClick(TObject *Sender)
+{
+
+ TStatus Refe;
+
+ Refe=ModHidro.Status;
+
+ if(Form_Gral->Label_Mod1_Per->Caption=="Off")
+	sendSciMsg(CMD_MHI_STT_MOD1_INTON, &Refe, sizeof(ModHidro.Status));
+ else
+   sendSciMsg(CMD_MHI_STT_MOD1_INTOFF, &Refe, sizeof(ModHidro.Status));
+
+ return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod2_PerClick(TObject *Sender)
+{
+ TStatus Refe;
+
+ Refe=ModHidro.Status;
+
+ if(Form_Gral->Label_Mod2_Per->Caption=="Off")
+	sendSciMsg(CMD_MHI_STT_MOD2_INTON, &Refe, sizeof(ModHidro.Status));
+ else
+   sendSciMsg(CMD_MHI_STT_MOD2_INTOFF, &Refe, sizeof(ModHidro.Status));
+
+ return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod3_PerClick(TObject *Sender)
+{
+ TStatus Refe;
+
+ Refe=ModHidro.Status;
+
+ if(Form_Gral->Label_Mod3_Per->Caption=="Off")
+	sendSciMsg(CMD_MHI_STT_MOD3_INTON, &Refe, sizeof(ModHidro.Status));
+ else
+   sendSciMsg(CMD_MHI_STT_MOD3_INTOFF, &Refe, sizeof(ModHidro.Status));
+
+ return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod4_PerClick(TObject *Sender)
+{
+ TStatus Refe;
+
+ Refe=ModHidro.Status;
+
+ if(Form_Gral->Label_Mod4_Per->Caption=="Off")
+	sendSciMsg(CMD_MHI_STT_MOD4_INTON, &Refe, sizeof(ModHidro.Status));
+ else
+   sendSciMsg(CMD_MHI_STT_MOD4_INTOFF, &Refe, sizeof(ModHidro.Status));
+
+ return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod5_PerClick(TObject *Sender)
+{
+ TStatus Refe;
+
+ Refe=ModHidro.Status;
+
+ if(Form_Gral->Label_Mod5_Per->Caption=="Off")
+	sendSciMsg(CMD_MHI_STT_MOD5_INTON, &Refe, sizeof(ModHidro.Status));
+ else
+   sendSciMsg(CMD_MHI_STT_MOD5_INTOFF, &Refe, sizeof(ModHidro.Status));
+
+ return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod6_PerClick(TObject *Sender)
+{
+ TStatus Refe;
+
+ Refe=ModHidro.Status;
+
+ if(Form_Gral->Label_Mod6_Per->Caption=="Off")
+	sendSciMsg(CMD_MHI_STT_MOD6_INTON, &Refe, sizeof(ModHidro.Status));
+ else
+   sendSciMsg(CMD_MHI_STT_MOD6_INTOFF, &Refe, sizeof(ModHidro.Status));
+
+ return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod2_RstClick(TObject *Sender)
+{
+  TTimerOut Refe;
+
+  Refe=ModHidro.Grp1Tmrs.TimerMod2;
+  Refe.Timer.ttl.dwrd=0;
+  sendSciMsg(DATA_MHI_SET_TIMER_M2, &Refe, sizeof(Refe));
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod3_RstClick(TObject *Sender)
+{
+  TTimerOut Refe;
+
+  Refe=ModHidro.Grp1Tmrs.TimerMod3;
+  Refe.Timer.ttl.dwrd=0;
+  sendSciMsg(DATA_MHI_SET_TIMER_M3, &Refe, sizeof(Refe));
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod4_RstClick(TObject *Sender)
+{
+  TTimerOut Refe;
+
+  Refe=ModHidro.Grp1Tmrs.TimerMod4;
+  Refe.Timer.ttl.dwrd=0;
+  sendSciMsg(DATA_MHI_SET_TIMER_M4, &Refe, sizeof(Refe));
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod5_RstClick(TObject *Sender)
+{
+  TTimerOut Refe;
+
+  Refe=ModHidro.Grp1Tmrs.TimerMod5;
+  Refe.Timer.ttl.dwrd=0;
+  sendSciMsg(DATA_MHI_SET_TIMER_M5, &Refe, sizeof(Refe));
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod6_RstClick(TObject *Sender)
+{
+  TTimerOut Refe;
+
+  Refe=ModHidro.Grp1Tmrs.TimerMod6;
+  Refe.Timer.ttl.dwrd=0;
+  sendSciMsg(DATA_MHI_SET_TIMER_M6, &Refe, sizeof(Refe));
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod7_PerClick(TObject *Sender)
+{
+
+ TStatus Refe;
+
+ Refe=ModHidro.Status;
+
+ if(Form_Gral->Label_Mod7_Per->Caption=="Off")
+	sendSciMsg(CMD_MHI_STT_MOD7_INTON, &Refe, sizeof(ModHidro.Status));
+ else
+   sendSciMsg(CMD_MHI_STT_MOD7_INTOFF, &Refe, sizeof(ModHidro.Status));
+
+ return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod7_SttClick(TObject *Sender)
+{
+ TStatus Refe;
+
+ Refe=ModHidro.Status;
+
+ if(Form_Gral->Led_Mod7_Stt->Brush->Color == clRed)
+	sendSciMsg(CMD_MHI_STT_MOD7_ON, &Refe, sizeof(ModHidro.Status));
+ else
+   sendSciMsg(CMD_MHI_STT_MOD7_OFF, &Refe, sizeof(ModHidro.Status));
+
+ return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod7_TOnKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp2Tmrs.TimerMod7;
+	if(EditAct->Text=="")
+	  Refe.TOn.ttl.dwrd=0;
+	else
+	{
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.TOn.hms.hor=h;
+	  Refe.TOn.hms.min=m;
+	  Refe.TOn.hms.seg=s;
+	}
+	sendSciMsg(DATA_MHI_SET_TIMER_M7, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod7_TOffKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp2Tmrs.TimerMod7;
+	if(EditAct->Text=="")
+	  Refe.TOff.ttl.dwrd=0;
+	else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.TOff.hms.hor=h;
+	  Refe.TOff.hms.min=m;
+	  Refe.TOff.hms.seg=s;
+	}
+	sendSciMsg(DATA_MHI_SET_TIMER_M7, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod7_TROnKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp2Tmrs.TimerMod7;
+    if(EditAct->Text=="")
+      Refe.TimeOn.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.TimeOn.hms.hor=h;
+      Refe.TimeOn.hms.min=m;
+      Refe.TimeOn.hms.seg=s;
+    }
+	sendSciMsg(DATA_MHI_SET_TIMER_M7, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod7_TRFrKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp2Tmrs.TimerMod7;
+    if(EditAct->Text=="")
+      Refe.Frec.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.Frec.hms.hor=h;
+      Refe.Frec.hms.min=m;
+      Refe.Frec.hms.seg=s;
+    }
+	sendSciMsg(DATA_MHI_SET_TIMER_M7, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod7_RstClick(TObject *Sender)
+{
+  TTimerOut Refe;
+
+  Refe=ModHidro.Grp2Tmrs.TimerMod7;
+  Refe.Timer.ttl.dwrd=0;
+  sendSciMsg(DATA_MHI_SET_TIMER_M7, &Refe, sizeof(Refe));
+
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod8_SttClick(TObject *Sender)
+{
+ TStatus Refe;
+
+ Refe=ModHidro.Status;
+
+ if(Form_Gral->Led_Mod8_Stt->Brush->Color == clRed)
+	sendSciMsg(CMD_MHI_STT_MOD8_ON, &Refe, sizeof(ModHidro.Status));
+ else
+   sendSciMsg(CMD_MHI_STT_MOD8_OFF, &Refe, sizeof(ModHidro.Status));
+
+ return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod9_SttClick(TObject *Sender)
+{
+ TStatus Refe;
+
+ Refe=ModHidro.Status;
+
+ if(Form_Gral->Led_Mod9_Stt->Brush->Color == clRed)
+	sendSciMsg(CMD_MHI_STT_MOD9_ON, &Refe, sizeof(ModHidro.Status));
+ else
+   sendSciMsg(CMD_MHI_STT_MOD9_OFF, &Refe, sizeof(ModHidro.Status));
+
+ return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod10_SttClick(TObject *Sender)
+{
+ TStatus Refe;
+
+ Refe=ModHidro.Status;
+
+ if(Form_Gral->Led_Mod10_Stt->Brush->Color == clRed)
+	sendSciMsg(CMD_MHI_STT_MOD10_ON, &Refe, sizeof(ModHidro.Status));
+ else
+   sendSciMsg(CMD_MHI_STT_MOD10_OFF, &Refe, sizeof(ModHidro.Status));
+
+ return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod11_SttClick(TObject *Sender)
+{
+ TStatus Refe;
+
+ Refe=ModHidro.Status;
+
+ if(Form_Gral->Led_Mod11_Stt->Brush->Color == clRed)
+	sendSciMsg(CMD_MHI_STT_MOD11_ON, &Refe, sizeof(ModHidro.Status));
+ else
+   sendSciMsg(CMD_MHI_STT_MOD11_OFF, &Refe, sizeof(ModHidro.Status));
+
+ return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod12_SttClick(TObject *Sender)
+{
+ TStatus Refe;
+
+ Refe=ModHidro.Status;
+
+ if(Form_Gral->Led_Mod12_Stt->Brush->Color == clRed)
+	sendSciMsg(CMD_MHI_STT_MOD12_ON, &Refe, sizeof(ModHidro.Status));
+ else
+   sendSciMsg(CMD_MHI_STT_MOD12_OFF, &Refe, sizeof(ModHidro.Status));
+
+ return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod8_PerClick(TObject *Sender)
+{
+ TStatus Refe;
+
+ Refe=ModHidro.Status;
+
+ if(Form_Gral->Label_Mod8_Per->Caption=="Off")
+	sendSciMsg(CMD_MHI_STT_MOD8_INTON, &Refe, sizeof(ModHidro.Status));
+ else
+   sendSciMsg(CMD_MHI_STT_MOD8_INTOFF, &Refe, sizeof(ModHidro.Status));
+
+ return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod9_PerClick(TObject *Sender)
+{
+ TStatus Refe;
+
+ Refe=ModHidro.Status;
+
+ if(Form_Gral->Label_Mod9_Per->Caption=="Off")
+	sendSciMsg(CMD_MHI_STT_MOD9_INTON, &Refe, sizeof(ModHidro.Status));
+ else
+   sendSciMsg(CMD_MHI_STT_MOD9_INTOFF, &Refe, sizeof(ModHidro.Status));
+
+ return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod10_PerClick(TObject *Sender)
+{
+ TStatus Refe;
+
+ Refe=ModHidro.Status;
+
+ if(Form_Gral->Label_Mod10_Per->Caption=="Off")
+	sendSciMsg(CMD_MHI_STT_MOD10_INTON, &Refe, sizeof(ModHidro.Status));
+ else
+   sendSciMsg(CMD_MHI_STT_MOD10_INTOFF, &Refe, sizeof(ModHidro.Status));
+
+ return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod11_PerClick(TObject *Sender)
+{
+ TStatus Refe;
+
+ Refe=ModHidro.Status;
+
+ if(Form_Gral->Label_Mod11_Per->Caption=="Off")
+	sendSciMsg(CMD_MHI_STT_MOD11_INTON, &Refe, sizeof(ModHidro.Status));
+ else
+   sendSciMsg(CMD_MHI_STT_MOD11_INTOFF, &Refe, sizeof(ModHidro.Status));
+
+ return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod12_PerClick(TObject *Sender)
+{
+ TStatus Refe;
+
+ Refe=ModHidro.Status;
+
+ if(Form_Gral->Label_Mod12_Per->Caption=="Off")
+	sendSciMsg(CMD_MHI_STT_MOD12_INTON, &Refe, sizeof(ModHidro.Status));
+ else
+   sendSciMsg(CMD_MHI_STT_MOD12_INTOFF, &Refe, sizeof(ModHidro.Status));
+
+ return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod8_RstClick(TObject *Sender)
+{
+  TTimerOut Refe;
+
+  Refe=ModHidro.Grp2Tmrs.TimerMod8;
+  Refe.Timer.ttl.dwrd=0;
+  sendSciMsg(DATA_MHI_SET_TIMER_M8, &Refe, sizeof(Refe));
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod9_RstClick(TObject *Sender)
+{
+  TTimerOut Refe;
+
+  Refe=ModHidro.Grp2Tmrs.TimerMod9;
+  Refe.Timer.ttl.dwrd=0;
+  sendSciMsg(DATA_MHI_SET_TIMER_M9, &Refe, sizeof(Refe));
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod10_RstClick(TObject *Sender)
+{
+  TTimerOut Refe;
+
+  Refe=ModHidro.Grp2Tmrs.TimerMod10;
+  Refe.Timer.ttl.dwrd=0;
+  sendSciMsg(DATA_MHI_SET_TIMER_M10, &Refe, sizeof(Refe));
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod11_RstClick(TObject *Sender)
+{
+  TTimerOut Refe;
+
+  Refe=ModHidro.Grp2Tmrs.TimerMod11;
+  Refe.Timer.ttl.dwrd=0;
+  sendSciMsg(DATA_MHI_SET_TIMER_M11, &Refe, sizeof(Refe));
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Label_Mod12_RstClick(TObject *Sender)
+{
+  TTimerOut Refe;
+
+  Refe=ModHidro.Grp2Tmrs.TimerMod12;
+  Refe.Timer.ttl.dwrd=0;
+  sendSciMsg(DATA_MHI_SET_TIMER_M12, &Refe, sizeof(Refe));
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod8_TOnKeyPress(TObject *Sender, System::WideChar &Key)
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp2Tmrs.TimerMod8;
+	if(EditAct->Text=="")
+	  Refe.TOn.ttl.dwrd=0;
+	else
+	{
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.TOn.hms.hor=h;
+	  Refe.TOn.hms.min=m;
+	  Refe.TOn.hms.seg=s;
+	}
+	sendSciMsg(DATA_MHI_SET_TIMER_M8, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod9_TOnKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp2Tmrs.TimerMod9;
+	if(EditAct->Text=="")
+	  Refe.TOn.ttl.dwrd=0;
+	else
+	{
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.TOn.hms.hor=h;
+	  Refe.TOn.hms.min=m;
+	  Refe.TOn.hms.seg=s;
+	}
+	sendSciMsg(DATA_MHI_SET_TIMER_M9, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod10_TOnKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp2Tmrs.TimerMod10;
+	if(EditAct->Text=="")
+	  Refe.TOn.ttl.dwrd=0;
+	else
+	{
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.TOn.hms.hor=h;
+	  Refe.TOn.hms.min=m;
+	  Refe.TOn.hms.seg=s;
+	}
+	sendSciMsg(DATA_MHI_SET_TIMER_M10, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod11_TOnKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp2Tmrs.TimerMod11;
+	if(EditAct->Text=="")
+	  Refe.TOn.ttl.dwrd=0;
+	else
+	{
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.TOn.hms.hor=h;
+	  Refe.TOn.hms.min=m;
+	  Refe.TOn.hms.seg=s;
+	}
+	sendSciMsg(DATA_MHI_SET_TIMER_M11, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod12_TOnKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp2Tmrs.TimerMod12;
+	if(EditAct->Text=="")
+	  Refe.TOn.ttl.dwrd=0;
+	else
+	{
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.TOn.hms.hor=h;
+	  Refe.TOn.hms.min=m;
+	  Refe.TOn.hms.seg=s;
+	}
+	sendSciMsg(DATA_MHI_SET_TIMER_M12, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod8_TOffKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp2Tmrs.TimerMod8;
+	if(EditAct->Text=="")
+	  Refe.TOff.ttl.dwrd=0;
+	else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.TOff.hms.hor=h;
+	  Refe.TOff.hms.min=m;
+	  Refe.TOff.hms.seg=s;
+	}
+	sendSciMsg(DATA_MHI_SET_TIMER_M8, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod9_TOffKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp2Tmrs.TimerMod9;
+	if(EditAct->Text=="")
+	  Refe.TOff.ttl.dwrd=0;
+	else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.TOff.hms.hor=h;
+	  Refe.TOff.hms.min=m;
+	  Refe.TOff.hms.seg=s;
+	}
+	sendSciMsg(DATA_MHI_SET_TIMER_M9, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod10_TOffKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp2Tmrs.TimerMod10;
+	if(EditAct->Text=="")
+	  Refe.TOff.ttl.dwrd=0;
+	else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.TOff.hms.hor=h;
+	  Refe.TOff.hms.min=m;
+	  Refe.TOff.hms.seg=s;
+	}
+	sendSciMsg(DATA_MHI_SET_TIMER_M10, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod11_TOffKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp2Tmrs.TimerMod11;
+	if(EditAct->Text=="")
+	  Refe.TOff.ttl.dwrd=0;
+	else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.TOff.hms.hor=h;
+	  Refe.TOff.hms.min=m;
+	  Refe.TOff.hms.seg=s;
+	}
+	sendSciMsg(DATA_MHI_SET_TIMER_M11, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod12_TOffKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp2Tmrs.TimerMod12;
+	if(EditAct->Text=="")
+	  Refe.TOff.ttl.dwrd=0;
+	else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.TOff.hms.hor=h;
+	  Refe.TOff.hms.min=m;
+	  Refe.TOff.hms.seg=s;
+	}
+	sendSciMsg(DATA_MHI_SET_TIMER_M12, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod8_TRFrKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp2Tmrs.TimerMod8;
+    if(EditAct->Text=="")
+      Refe.Frec.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.Frec.hms.hor=h;
+      Refe.Frec.hms.min=m;
+      Refe.Frec.hms.seg=s;
+    }
+	sendSciMsg(DATA_MHI_SET_TIMER_M8, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod9_TRFrKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp2Tmrs.TimerMod9;
+    if(EditAct->Text=="")
+      Refe.Frec.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.Frec.hms.hor=h;
+      Refe.Frec.hms.min=m;
+      Refe.Frec.hms.seg=s;
+    }
+	sendSciMsg(DATA_MHI_SET_TIMER_M9, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+}
+//---------------------------------------------------------------------------
+
+void __fastcall TForm_Gral::Show_Mod10_TRFrKeyPress(TObject *Sender, System::WideChar &Key)
+
+{
+  TTimerOut Refe;
+  int h,m,s,i;
+  char *text, Temp[8];
+  TEdit *EditAct=(TEdit*)Sender;
+
+  if(Key==13)
+  {
+	Refe=ModHidro.Grp2Tmrs.TimerMod10;
+    if(EditAct->Text=="")
+      Refe.Frec.ttl.dwrd=0;
+    else
+    {
+	  text=(char *)EditAct->Text.c_str();
+	  for(i=0;i<8;i++)
+		Temp[i]= text[2*i];
+	  sscanf(Temp,"%d:%d:%d", &h,&m,&s);
+	  Refe.Frec.hms.hor=h;
+      Refe.Frec.hms.min=m;
+      Refe.Frec.hms.seg=s;
+    }
+	sendSciMsg(DATA_MHI_SET_TIMER_M10, &Refe, sizeof(Refe));
+//    Key=0;
+  }
+  return;
+
+}
+//---------------------------------------------------------------------------
+

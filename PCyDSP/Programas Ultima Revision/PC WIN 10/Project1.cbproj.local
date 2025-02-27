@@ -1,0 +1,21 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<BorlandProject>
+	<Transactions>
+    <Transaction>2020/11/23 23:38:04.000.357,=C:\Users\mpaur\Documents\Embarcadero\Studio\Projects\Project1PCH1.h</Transaction>
+    <Transaction>2020/11/23 23:38:05.000.248,=C:\Users\mpaur\Documents\Embarcadero\Studio\Projects\Unit1.cpp</Transaction>
+    <Transaction>2020/11/24 08:19:41.000.849,=C:\Users\mpaur\Documents\Embarcadero\Studio\Projects\Project1PCH1.h</Transaction>
+    <Transaction>2020/11/24 08:19:44.000.302,=C:\Users\mpaur\Documents\Embarcadero\Studio\Projects\Unit1.cpp</Transaction>
+    <Transaction>2021/01/05 20:49:22.000.987,=C:\Users\mpaur\Documents\Embarcadero\Studio\Projects\Project1PCH1.h</Transaction>
+    <Transaction>2021/01/05 20:49:23.000.066,=C:\Users\mpaur\Documents\Embarcadero\Studio\Projects\Unit1.cpp</Transaction>
+    <Transaction>2021/01/05 20:50:53.000.185,C:\Users\mpaur\Desktop\Electronica\Proyectos\Control Hidroponia\Software\PCyDSP\PC WIN 10\Unit1.cpp=C:\Users\mpaur\Documents\Embarcadero\Studio\Projects\Unit1.cpp</Transaction>
+    <Transaction>2021/01/05 20:50:53.000.185,C:\Users\mpaur\Desktop\Electronica\Proyectos\Control Hidroponia\Software\PCyDSP\PC WIN 10\Unit1.dfm=C:\Users\mpaur\Documents\Embarcadero\Studio\Projects\Unit1.dfm</Transaction>
+    <Transaction>2021/01/05 20:50:53.000.185,C:\Users\mpaur\Desktop\Electronica\Proyectos\Control Hidroponia\Software\PCyDSP\PC WIN 10\Unit1.h=C:\Users\mpaur\Documents\Embarcadero\Studio\Projects\Unit1.h</Transaction>
+    <Transaction>2021/01/05 20:51:22.000.413,C:\Users\mpaur\Desktop\Electronica\Proyectos\Control Hidroponia\Software\PCyDSP\PC WIN 10\CtrlModHidro.h=C:\Users\mpaur\Documents\Embarcadero\Studio\Projects\Project1PCH1.h</Transaction>
+    <Transaction>2021/01/05 20:52:31.000.303,C:\Users\mpaur\Desktop\Electronica\Proyectos\Control Hidroponia\Software\PCyDSP\PC WIN 10\Project1.cbproj=C:\Users\mpaur\Documents\Embarcadero\Studio\Projects\Project1.cbproj</Transaction>
+    <Transaction>2021/01/05 20:52:43.000.065,=C:\Users\mpaur\Desktop\Electronica\Proyectos\Control Hidroponia\Software\PCyDSP\PC WIN 10\Unit_Gral.cpp</Transaction>
+    <Transaction>2021/01/05 20:52:50.000.611,=C:\Users\mpaur\Desktop\Electronica\Proyectos\Control Hidroponia\Software\PCyDSP\PC WIN 10\Unit_DialogConexion.cpp</Transaction>
+    <Transaction>2021/01/05 20:53:41.000.958,C:\Users\mpaur\Desktop\Electronica\Proyectos\Control Hidroponia\Software\PCyDSP\PC WIN 10\Unit1.cpp=</Transaction>
+    <Transaction>2021/01/05 21:01:55.000.641,=C:\Users\mpaur\Desktop\Electronica\Proyectos\Control Hidroponia\Software\PCyDSP\PC WIN 10\Unit_ThreadComPort.cpp</Transaction>
+    <Transaction>2021/01/05 21:05:01.000.082,=C:\Users\mpaur\Desktop\Electronica\Proyectos\Control Hidroponia\Software\PCyDSP\PC WIN 10\Unit_PuertoCom.cpp</Transaction>
+  </Transactions>
+</BorlandProject>

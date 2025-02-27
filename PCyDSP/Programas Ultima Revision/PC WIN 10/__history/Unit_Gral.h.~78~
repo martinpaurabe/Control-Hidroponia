@@ -1,0 +1,592 @@
+#ifndef Unit_GralH
+#define Unit_GralH
+//---------------------------------------------------------------------------
+
+#include <Classes.hpp>
+#include <Controls.hpp>
+#include <StdCtrls.hpp>
+#include <Forms.hpp>
+#include <ComCtrls.hpp>
+#include <ExtCtrls.hpp>
+#include <ImgList.hpp>
+#include <Menus.hpp>
+#include <ToolWin.hpp>
+#include <stdio.h>
+#include <string.h>
+#include <System.ImageList.hpp>
+#include <iostream>
+#include <time.h>
+
+
+
+#include "Def_ModHidro.h"
+//---------------------------------------------------------------------------
+
+#define T_AeroGenerador 1000.0
+
+
+class TForm_Gral : public TForm
+{
+__published:	// IDE-managed Components
+        TMainMenu *MainMenu1;
+        TMenuItem *MenuArchivos;
+        TMenuItem *MenuItemArchAbrir;
+        TMenuItem *MenuItemArchGuardar;
+        TMenuItem *MenuItemArchGuardarComo;
+        TMenuItem *N2;
+        TMenuItem *MenuItemArchExportar;
+        TMenuItem *N1;
+        TMenuItem *MenuItemArchImprimir;
+        TMenuItem *N6;
+        TMenuItem *MenuItemArchSalir;
+        TMenuItem *MenuOpciones;
+        TMenuItem *MenuCalibracion;
+        TMenuItem *N7;
+        TMenuItem *Conexion;
+        TMenuItem *MenuVentana;
+        TMenuItem *VentanaCascade;
+        TMenuItem *VentanaTile;
+        TMenuItem *MenuAyuda;
+        TMenuItem *Contenido1;
+        TMenuItem *N8;
+        TMenuItem *Acercade1;
+        TImageList *ImageListToolBar;
+        TStatusBar *StatusBarPrinc;
+        TTimer *TimerSciTx;
+        TGroupBox *Show_DrenLSH;
+        TEdit *Show_DrenLSH_Swtch;
+        TEdit *Show_DrenLSH_Val;
+  TLabel *Label5;
+  TLabel *Label6;
+        TEdit *Show_DrenLSH_Min;
+        TEdit *Show_DrenLSH_Max;
+  TLabel *Label7;
+  TLabel *Label8;
+  TGroupBox *GroupBox2;
+  TCheckBox *Chek_Auto_Actual;
+  TEdit *Show_Name;
+        TGroupBox *GroupBox4;
+        TCheckBox *OutLuces;
+        TCheckBox *ValvulaRiego;
+        TCheckBox *BombaTrasvase;
+        TCheckBox *BombaAire;
+        TButton *BtnSaveConfig;
+        TGroupBox *Show_DrenLT;
+        TLabel *Label1;
+        TLabel *Label3;
+        TLabel *Label4;
+        TEdit *Show_DrenLT_Swtch;
+        TEdit *Show_DrenLT_Val;
+        TEdit *Show_DrenLT_Min;
+        TEdit *Show_DrenLT_Max;
+        TGroupBox *GroupBox1;
+        TLabel *Label9;
+        TLabel *Label11;
+        TLabel *Label12;
+        TEdit *Show_TKLSH_Swtch;
+        TEdit *Show_TKLSH_Val;
+        TEdit *Show_TKLSH_Min;
+        TEdit *Show_TKLSH_Max;
+        TGroupBox *GroupBox3;
+        TLabel *Label13;
+        TLabel *Label15;
+        TLabel *Label16;
+        TEdit *Show_TKLSL_Swtch;
+        TEdit *Show_TKLSL_Val;
+        TEdit *Show_TKLSL_Min;
+        TEdit *Show_TKLSL_Max;
+        TLabel *Label17;
+        TLabel *Label18;
+        TEdit *Show_DrenLSH_Lng;
+        TEdit *Show_DrenLSH_ADVal;
+        TLabel *Label19;
+        TEdit *Show_DrenLT_ADVal;
+        TLabel *Label20;
+        TEdit *Show_DrenLT_Lng;
+        TLabel *Label21;
+        TEdit *Show_TKLSH_ADVal;
+        TLabel *Label22;
+        TEdit *Show_TKLSH_Lng;
+        TLabel *Label23;
+        TEdit *Show_TKLSL_ADVal;
+        TLabel *Label24;
+        TEdit *Show_TKLSL_Lng;
+        TLabel *Label2;
+        TLabel *Label10;
+        TLabel *Label14;
+        TGroupBox *GroupBox5;
+        TLabel *Label26;
+        TLabel *Label27;
+        TLabel *Label28;
+        TLabel *Label29;
+	TEdit *Show_Mod1_TOn;
+	TEdit *Show_Mod1_TOff;
+	TEdit *Show_Mod1_TROn;
+	TEdit *Show_Mod1_TRFr;
+        TLabel *Label25;
+        TEdit *Show_Hora_Disp;
+        TLabel *Label30;
+        TButton *Bot_Man_Auto;
+        TLabel *Label31;
+	TEdit *Show_Mod1_TMR;
+        TCheckBox *ValvulaAgua;
+        TLabel *Label32;
+        TEdit *Show_Time_IniDia;
+        TLabel *Label33;
+        TEdit *Show_Time_IniMed;
+        TLabel *Label34;
+        TEdit *Show_Time_FinMed;
+        TLabel *Label35;
+        TEdit *Show_Time_FinDia;
+        TGroupBox *GroupBox6;
+        TLabel *Label36;
+        TLabel *Label37;
+        TLabel *Label38;
+        TLabel *Label39;
+        TLabel *Label40;
+	TEdit *Show_Mod3_TOn;
+	TEdit *Show_Mod3_TOff;
+	TEdit *Show_Mod3_TROn;
+	TEdit *Show_Mod3_TRFr;
+	TEdit *Show_Mod3_TMR;
+        TLabel *Label41;
+        TEdit *Show_DrenLSH_Offset;
+        TLabel *Label42;
+        TEdit *Show_DrenLT_Offset;
+        TEdit *Show_TKLSH_Offset;
+        TLabel *Label43;
+        TEdit *Show_TKLSL_Offset;
+        TLabel *Label44;
+        TGroupBox *GroupBox7;
+        TLabel *Label45;
+        TLabel *Label46;
+        TLabel *Label47;
+        TEdit *Show_TKCond_MaxAD;
+        TEdit *Show_TKCond_FEsc;
+        TEdit *Show_TKCond_Val;
+        TLabel *Label49;
+        TGroupBox *GroupBox8;
+        TLabel *Label48;
+        TLabel *Label50;
+        TLabel *Label51;
+        TLabel *Label52;
+        TEdit *Show_DrenCond_MaxAD;
+        TEdit *Show_DrenCond_FEsc;
+        TEdit *Show_DrenCond_Val;
+        TButton *But_Sincronizar;
+        TGroupBox *GroupBox9;
+        TLabel *Label64;
+        TLabel *Label65;
+        TLabel *Label66;
+        TLabel *Label67;
+        TLabel *Label68;
+	TEdit *Show_Mod2_TOn;
+	TEdit *Show_Mod2_TOff;
+	TEdit *Show_Mod2_TROn;
+	TEdit *Show_Mod2_TRFr;
+	TEdit *Show_Mod2_TMR;
+	TGroupBox *GroupBox10;
+	TLabel *Label53;
+	TLabel *Label54;
+	TLabel *Label57;
+	TLabel *Label58;
+	TLabel *Label59;
+	TEdit *Show_Mod4_TOn;
+	TEdit *Show_Mod4_TOff;
+	TEdit *Show_Mod4_TROn;
+	TEdit *Show_Mod4_TRFr;
+	TEdit *Show_Mod4_TMR;
+	TGroupBox *GroupBox11;
+	TLabel *Label60;
+	TLabel *Label61;
+	TLabel *Label62;
+	TLabel *Label63;
+	TLabel *Label69;
+	TEdit *Show_Mod6_TOn;
+	TEdit *Show_Mod6_TOff;
+	TEdit *Show_Mod6_TROn;
+	TEdit *Show_Mod6_TRFr;
+	TEdit *Show_Mod6_TMR;
+	TGroupBox *GroupBox12;
+	TLabel *Label70;
+	TLabel *Label71;
+	TLabel *Label72;
+	TLabel *Label73;
+	TLabel *Label74;
+	TEdit *Show_Mod5_TOn;
+	TEdit *Show_Mod5_TOff;
+	TEdit *Show_Mod5_TROn;
+	TEdit *Show_Mod5_TRFr;
+	TEdit *Show_Mod5_TMR;
+	TShape *Led_Mod1_Stt;
+	TLabel *Label_Mod1_Stt;
+	TShape *Led_Mod1_Per;
+	TShape *Led_Mod1_Rst;
+	TLabel *Label106;
+	TLabel *Label107;
+	TLabel *Label108;
+	TLabel *Label_Mod1_Per;
+	TLabel *Label_Mod1_Rst;
+	TShape *Led_Mod2_Stt;
+	TLabel *Label_Mod2_Stt;
+	TShape *Led_Mod2_Per;
+	TShape *Led_Mod2_Rst;
+	TLabel *Label110;
+	TLabel *Label111;
+	TLabel *Label112;
+	TLabel *Label_Mod2_Per;
+	TLabel *Label_Mod2_Rst;
+	TShape *Led_Mod3_Stt;
+	TLabel *Label_Mod3_Stt;
+	TShape *Led_Mod3_Per;
+	TShape *Led_Mod3_Rst;
+	TLabel *Label116;
+	TLabel *Label117;
+	TLabel *Label118;
+	TLabel *Label_Mod3_Per;
+	TLabel *Label_Mod3_Rst;
+	TShape *Led_Mod4_Stt;
+	TLabel *Label_Mod4_Stt;
+	TShape *Led_Mod4_Per;
+	TShape *Led_Mod4_Rst;
+	TLabel *Label122;
+	TLabel *Label123;
+	TLabel *Label124;
+	TLabel *Label_Mod4_Per;
+	TLabel *Label_Mod4_Rst;
+	TShape *Led_Mod5_Stt;
+	TLabel *Label_Mod5_Stt;
+	TShape *Led_Mod5_Per;
+	TShape *Led_Mod5_Rst;
+	TLabel *Label128;
+	TLabel *Label129;
+	TLabel *Label130;
+	TLabel *Label_Mod5_Per;
+	TLabel *Label_Mod5_Rst;
+	TShape *Led_Mod6_Stt;
+	TLabel *Label_Mod6_Stt;
+	TShape *Led_Mod6_Per;
+	TShape *Led_Mod6_Rst;
+	TLabel *Label134;
+	TLabel *Label135;
+	TLabel *Label136;
+	TLabel *Label_Mod6_Per;
+	TLabel *Label_Mod6_Rst;
+	TGroupBox *GroupBox13;
+	TShape *Led_Mod7_Stt;
+	TShape *Led_Mod7_Per;
+	TShape *Led_Mod7_Rst;
+	TLabel *Label_Mod7_Rst;
+	TLabel *Label_Mod7_Stt;
+	TLabel *Label_Mod7_Per;
+	TLabel *Label76;
+	TLabel *Label77;
+	TLabel *Label78;
+	TLabel *Label79;
+	TLabel *Label80;
+	TLabel *Label81;
+	TLabel *Label82;
+	TLabel *Label83;
+	TEdit *Show_Mod7_TOn;
+	TEdit *Show_Mod7_TOff;
+	TEdit *Show_Mod7_TROn;
+	TEdit *Show_Mod7_TRFr;
+	TEdit *Show_Mod7_TMR;
+	TGroupBox *GroupBox14;
+	TShape *Led_Mod9_Stt;
+	TLabel *Label_Mod9_Stt;
+	TShape *Led_Mod9_Per;
+	TShape *Led_Mod9_Rst;
+	TLabel *Label_Mod9_Per;
+	TLabel *Label_Mod9_Rst;
+	TLabel *Label87;
+	TLabel *Label88;
+	TLabel *Label89;
+	TLabel *Label90;
+	TLabel *Label91;
+	TLabel *Label92;
+	TLabel *Label93;
+	TLabel *Label94;
+	TEdit *Show_Mod9_TOn;
+	TEdit *Show_Mod9_TOff;
+	TEdit *Show_Mod9_TROn;
+	TEdit *Show_Mod9_TRFr;
+	TEdit *Show_Mod9_TMR;
+	TGroupBox *GroupBox15;
+	TShape *Led_Mod8_Stt;
+	TLabel *Label_Mod8_Stt;
+	TShape *Led_Mod8_Per;
+	TShape *Led_Mod8_Rst;
+	TLabel *Label_Mod8_Per;
+	TLabel *Label_Mod8_Rst;
+	TLabel *Label98;
+	TLabel *Label99;
+	TLabel *Label100;
+	TLabel *Label101;
+	TLabel *Label102;
+	TLabel *Label103;
+	TLabel *Label104;
+	TLabel *Label105;
+	TEdit *Show_Mod8_TOn;
+	TEdit *Show_Mod8_TOff;
+	TEdit *Show_Mod8_TROn;
+	TEdit *Show_Mod8_TRFr;
+	TEdit *Show_Mod8_TMR;
+	TGroupBox *GroupBox16;
+	TShape *Led_Mod10_Stt;
+	TLabel *Label_Mod10_Stt;
+	TShape *Led_Mod10_Per;
+	TShape *Led_Mod10_Rst;
+	TLabel *Label_Mod10_Rst;
+	TLabel *Label_Mod10_Per;
+	TLabel *Label115;
+	TLabel *Label119;
+	TLabel *Label120;
+	TLabel *Label121;
+	TLabel *Label125;
+	TLabel *Label126;
+	TLabel *Label127;
+	TLabel *Label131;
+	TEdit *Show_Mod10_TOn;
+	TEdit *Show_Mod10_TOff;
+	TEdit *Show_Mod10_TROn;
+	TEdit *Show_Mod10_TRFr;
+	TEdit *Show_Mod10_TMR;
+	TGroupBox *GroupBox17;
+	TShape *Led_Mod12_Stt;
+	TLabel *Label_Mod12_Stt;
+	TShape *Led_Mod12_Per;
+	TShape *Led_Mod12_Rst;
+	TLabel *Label_Mod12_Rst;
+	TLabel *Label_Mod12_Per;
+	TLabel *Label138;
+	TLabel *Label139;
+	TLabel *Label140;
+	TLabel *Label141;
+	TLabel *Label142;
+	TLabel *Label143;
+	TLabel *Label144;
+	TLabel *Label145;
+	TEdit *Show_Mod12_TOn;
+	TEdit *Show_Mod12_TOff;
+	TEdit *Show_Mod12_TROn;
+	TEdit *Show_Mod12_TRFr;
+	TEdit *Show_Mod12_TMR;
+	TGroupBox *GroupBox18;
+	TShape *Led_Mod11_Stt;
+	TLabel *Label_Mod11_Stt;
+	TShape *Led_Mod11_Per;
+	TLabel *Label_Mod11_Per;
+	TShape *Led_Mod11_Rst;
+	TLabel *Label_Mod11_Rst;
+	TLabel *Label149;
+	TLabel *Label150;
+	TLabel *Label151;
+	TLabel *Label152;
+	TLabel *Label153;
+	TLabel *Label154;
+	TLabel *Label155;
+	TLabel *Label156;
+	TEdit *Show_Mod11_TOn;
+	TEdit *Show_Mod11_TOff;
+	TEdit *Show_Mod11_TROn;
+	TEdit *Show_Mod11_TRFr;
+	TEdit *Show_Mod11_TMR;
+        void __fastcall FormClose(TObject *Sender, TCloseAction &Action);
+        void __fastcall FormShow(TObject *Sender);
+        void __fastcall ConexionClick(TObject *Sender);
+        void __fastcall TimerSciTxTimer(TObject *Sender);
+  void __fastcall But_UpD_MtrClick(TObject *Sender);
+        void __fastcall Show_DrenLSH_SwtchKeyPress(TObject *Sender, char &Key);
+        void __fastcall OutLucesClick(TObject *Sender);
+        void __fastcall ValvulaRiegoClick(TObject *Sender);
+        void __fastcall BombaTrasvaseClick(TObject *Sender);
+        void __fastcall BombaAireClick(TObject *Sender);
+        void __fastcall Show_NameKeyPress(TObject *Sender, char &Key);
+        void __fastcall Show_TKLSH_MinKeyPress(TObject *Sender, char &Key);
+        void __fastcall Show_TKLSH_MaxKeyPress(TObject *Sender, char &Key);
+        void __fastcall Show_TKLSH_LngKeyPress(TObject *Sender, char &Key);
+        void __fastcall Show_TKLSH_SwtchKeyPress(TObject *Sender,
+          char &Key);
+        void __fastcall Show_DrenLT_SwtchKeyPress(TObject *Sender,
+          char &Key);
+        void __fastcall Show_DrenLT_LngKeyPress(TObject *Sender,
+          char &Key);
+        void __fastcall Show_DrenLSH_LngKeyPress(TObject *Sender,
+          char &Key);
+        void __fastcall Show_TKLSL_LngKeyPress(TObject *Sender, char &Key);
+        void __fastcall Show_TKLSL_SwtchKeyPress(TObject *Sender,
+          char &Key);
+        void __fastcall Show_DrenLSH_MaxKeyPress(TObject *Sender,
+          char &Key);
+        void __fastcall Show_DrenLSH_MinKeyPress(TObject *Sender,
+          char &Key);
+        void __fastcall Show_DrenLT_MaxKeyPress(TObject *Sender,
+          char &Key);
+        void __fastcall Show_DrenLT_MinKeyPress(TObject *Sender,
+          char &Key);
+        void __fastcall Show_TKLSL_MinKeyPress(TObject *Sender, char &Key);
+        void __fastcall Show_TKLSL_MaxKeyPress(TObject *Sender, char &Key);
+        void __fastcall Show_Hora_DispKeyPress(TObject *Sender, char &Key);
+        void __fastcall Show_Mod1_TOnKeyPress(TObject *Sender, char &Key);
+        void __fastcall Show_Mod1_TOffKeyPress(TObject *Sender, char &Key);
+        void __fastcall Show_Mod1_TROnKeyPress(TObject *Sender, char &Key);
+        void __fastcall Show_Mod1_TRFrKeyPress(TObject *Sender, char &Key);
+        void __fastcall Bot_Man_AutoClick(TObject *Sender);
+        void __fastcall Show_Time_IniDiaKeyPress(TObject *Sender,
+          char &Key);
+        void __fastcall Box_Mod1_InterClick(TObject *Sender);
+        void __fastcall Show_Time_IniMedKeyPress(TObject *Sender,
+          char &Key);
+		void __fastcall Show_Time_FinMedKeyPress(TObject *Sender,
+          char &Key);
+        void __fastcall Show_Time_FinDiaKeyPress(TObject *Sender,
+          char &Key);
+        void __fastcall ValvulaAguaClick(TObject *Sender);
+        void __fastcall Show_TKLSL_OffsetKeyPress(TObject *Sender,
+          char &Key);
+        void __fastcall Show_TKLSH_OffsetKeyPress(TObject *Sender,
+          char &Key);
+        void __fastcall Show_DrenLT_OffsetKeyPress(TObject *Sender,
+          char &Key);
+        void __fastcall Show_DrenLSH_OffsetKeyPress(TObject *Sender,
+          char &Key);
+        void __fastcall Show_TKCond_FEscKeyPress(TObject *Sender,
+          char &Key);
+        void __fastcall Show_DrenCond_FEscKeyPress(TObject *Sender,
+          char &Key);
+        void __fastcall But_SincronizarClick(TObject *Sender);
+	void __fastcall Box_Mod3_InterClick(TObject *Sender);
+	void __fastcall Box_Mod2_InterClick(TObject *Sender);
+	void __fastcall Show_Mod2_TRFrKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod3_TRFrKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod4_TRFrKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod5_TRFrKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod6_TRFrKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod2_TROnKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod3_TROnKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod4_TROnKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod5_TROnKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod6_TROnKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod2_TOffKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod3_TOffKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod4_TOffKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod5_TOffKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod6_TOffKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod2_TOnKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod3_TOnKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod4_TOnKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod5_TOnKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod6_TOnKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Label_Mod1_RstClick(TObject *Sender);
+	void __fastcall Label_Mod1_SttClick(TObject *Sender);
+	void __fastcall Label_Mod2_SttClick(TObject *Sender);
+	void __fastcall Label_Mod3_SttClick(TObject *Sender);
+	void __fastcall Label_Mod4_SttClick(TObject *Sender);
+	void __fastcall Label_Mod5_SttClick(TObject *Sender);
+	void __fastcall Label_Mod6_SttClick(TObject *Sender);
+	void __fastcall Label_Mod1_PerClick(TObject *Sender);
+	void __fastcall Label_Mod2_PerClick(TObject *Sender);
+	void __fastcall Label_Mod3_PerClick(TObject *Sender);
+	void __fastcall Label_Mod4_PerClick(TObject *Sender);
+	void __fastcall Label_Mod5_PerClick(TObject *Sender);
+	void __fastcall Label_Mod6_PerClick(TObject *Sender);
+	void __fastcall Label_Mod2_RstClick(TObject *Sender);
+	void __fastcall Label_Mod3_RstClick(TObject *Sender);
+	void __fastcall Label_Mod4_RstClick(TObject *Sender);
+	void __fastcall Label_Mod5_RstClick(TObject *Sender);
+	void __fastcall Label_Mod6_RstClick(TObject *Sender);
+	void __fastcall Label_Mod7_PerClick(TObject *Sender);
+	void __fastcall Label_Mod7_SttClick(TObject *Sender);
+	void __fastcall Show_Mod7_TOnKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod7_TOffKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod7_TROnKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod7_TRFrKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Label_Mod7_RstClick(TObject *Sender);
+	void __fastcall Label_Mod8_SttClick(TObject *Sender);
+	void __fastcall Label_Mod9_SttClick(TObject *Sender);
+	void __fastcall Label_Mod10_SttClick(TObject *Sender);
+	void __fastcall Label_Mod11_SttClick(TObject *Sender);
+	void __fastcall Label_Mod12_SttClick(TObject *Sender);
+	void __fastcall Label_Mod8_PerClick(TObject *Sender);
+	void __fastcall Label_Mod9_PerClick(TObject *Sender);
+	void __fastcall Label_Mod10_PerClick(TObject *Sender);
+	void __fastcall Label_Mod11_PerClick(TObject *Sender);
+	void __fastcall Label_Mod12_PerClick(TObject *Sender);
+	void __fastcall Label_Mod8_RstClick(TObject *Sender);
+	void __fastcall Label_Mod9_RstClick(TObject *Sender);
+	void __fastcall Label_Mod10_RstClick(TObject *Sender);
+	void __fastcall Label_Mod11_RstClick(TObject *Sender);
+	void __fastcall Label_Mod12_RstClick(TObject *Sender);
+	void __fastcall Show_Mod8_TOnKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod9_TOnKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod10_TOnKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod11_TOnKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod12_TOnKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod8_TOffKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod9_TOffKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod10_TOffKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod11_TOffKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod12_TOffKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod8_TRFrKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod9_TRFrKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod10_TRFrKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod11_TRFrKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod12_TRFrKeyPress(TObject *Sender, System::WideChar &Key);
+	void __fastcall Show_Mod8_TROnKeyPress(TObject *Sender, System::WideChar &Key);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+private:	// User declarations
+public:		// User declarations
+        __fastcall TForm_Gral(TComponent* Owner);
+
+        void __fastcall ActualizarInterfase(void);
+
+        int PuertoCom;
+        bool ThreadComOn;
+
+        BYTE ComStatus;
+
+		Byte Buf[1000];
+
+		TModHidro ModHidro;
+};
+//---------------------------------------------------------------------------
+extern PACKAGE TForm_Gral *Form_Gral;
+//---------------------------------------------------------------------------
+#endif

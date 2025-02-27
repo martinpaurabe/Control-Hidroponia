@@ -1,0 +1,10 @@
+void init_Timer(void);
+void isrTimerC0(void);
+void isrTimerC1(void);
+void isrTimerC2(void);
+void isrTimerC3(void);
+void isrTimerA0(void);
+void isrTimerA1(void);
+void isrTimerA2(void);
+void isrTimerA3(void);
+void Set_Stt_Timer(void);
